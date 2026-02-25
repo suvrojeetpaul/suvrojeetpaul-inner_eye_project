@@ -1,0 +1,18 @@
+body {
+  margin: 0;
+  background-color: #050505; /* Deep black */
+  background-image: 
+    radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050505 100%);
+  color: #e0e0e0;
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar for a technical feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #00f2fe;
+  border-radius: 10px;
+}
