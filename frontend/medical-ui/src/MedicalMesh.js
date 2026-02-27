@@ -1,92 +1,154 @@
-import React, { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Float, ContactShadows, Torus, Environment } from '@react-three/drei';
+import React, { useRef, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Stars, PerspectiveCamera, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 /**
- * Tactical Anomaly Component:
- * This is the "Tumour Structure" you need for studying.
- * It remains visible inside the neural shell.
+ * MEDICAL_MESH // MULTI-CLASS VOXEL RECONSTRUCTION
+ * Hand-coded BufferAttribute mapping for Organ vs Tumor rendering
  */
-function ClinicalAnomaly({ active, result }) {
-  const anomalyRef = useRef();
+export default function MedicalMesh({ active, result, viewMode }) {
+  const groupRef = useRef();
+  const pointsRef = useRef();
+  const { clock } = useThree();
 
+  // --- [1] VOXEL CLOUD GENERATION ---
+  const voxelData = useMemo(() => {
+    if (!active || !result || !result.voxels) return null;
+
+    const rawVoxels = result.voxels; 
+    const count = rawVoxels.length;
+    
+    // Arrays for GPU BufferAttributes
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
+    const organColor = new THREE.Color("#4ea8ff"); // Clinical Blue
+    const tumorColor = new THREE.Color("#ff3300"); // Critical Red
+
+    rawVoxels.forEach((v, i) => {
+      // Coordinates from Backend (X, Y, Z, Label)
+      positions[i * 3] = v[0];
+      positions[i * 3 + 1] = v[1];
+      positions[i * 3 + 2] = v[2];
+
+      // Label-based Coloring (v[3] is the label: 1=Organ, 2=Tumor)
+      const label = v[3];
+      const baseColor = label === 2 ? tumorColor : organColor;
+      
+      // Clinical shading: Add random variance to simulate tissue heterogeneity
+      const shade = 0.7 + (Math.random() * 0.3);
+      colors[i * 3] = baseColor.r * shade;
+      colors[i * 3 + 1] = baseColor.g * shade;
+      colors[i * 3 + 2] = baseColor.b * shade;
+
+      // Sizes: Tumors voxels rendered slightly larger for visibility
+      sizes[i] = label === 2 ? 0.08 : 0.04;
+    });
+
+    return { positions, colors, sizes };
+  }, [active, result]);
+
+  // --- [2] ANIMATION & PHYSICS ENGINE ---
   useFrame((state) => {
-    if (anomalyRef.current && active) {
-      const t = state.clock.getElapsedTime();
-      // Intense biological pulsing for study
-      const s = 1 + Math.sin(t * 4) * 0.12;
-      anomalyRef.current.scale.set(s, s, s);
+    const t = state.clock.getElapsedTime();
+
+    if (groupRef.current) {
+      // Slow rotation for inspection
+      groupRef.current.rotation.y += 0.002;
+      
+      // Dynamic scaling (Heartbeat pulse)
+      if (active) {
+        const pulse = 1 + Math.sin(t * 1.5) * 0.015;
+        groupRef.current.scale.set(pulse, pulse, pulse);
+      }
+    }
+
+    // Sub-voxel drift animation
+    if (pointsRef.current && active) {
+        pointsRef.current.rotation.z = Math.sin(t * 0.3) * 0.03;
     }
   });
 
-  if (!active) return null;
-
   return (
-    <group position={[
-      result?.coords?.x || 0.4, 
-      result?.coords?.y || -0.1, 
-      result?.coords?.z || 0.3
-    ]}>
-      <mesh ref={anomalyRef}>
-        <sphereGeometry args={[0.65, 64, 64]} />
-        <meshStandardMaterial 
-          color="#ff4400" 
-          emissive="#ffcc33" 
-          emissiveIntensity={25} 
-          roughness={0}
-          metalness={1}
-        />
-      </mesh>
-      {/* Internal point light to illuminate the wireframe from within */}
-      <pointLight color="#ff4400" intensity={15} distance={6} decay={2} />
-    </group>
-  );
-}
+    <>
+      <PerspectiveCamera makeDefault position={[0, 0, 6]} fov={40} />
+      <OrbitControls 
+        enableDamping 
+        dampingFactor={0.05} 
+        rotateSpeed={0.5} 
+        maxDistance={12} 
+        minDistance={2} 
+      />
+      
+      <Stars radius={100} depth={50} count={6000} factor={4} saturation={0} fade speed={1.5} />
+      
+      {/* Clinical Lighting Setup */}
+      <ambientLight intensity={0.4} />
+      <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
+      <spotLight position={[-10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
 
-/**
- * Main Medical Mesh:
- * Keeps your blue wireframe but adds the internal tumour structure.
- */
-export default function MedicalMesh({ active, result }) {
-  const shellRef = useRef();
-  // Match the theme color to your current blue wireframe
-  const themeColor = "#4ea8ff"; 
-
-  useFrame((state) => {
-    if (shellRef.current) {
-      shellRef.current.rotation.y += 0.003;
-    }
-  });
-
-  return (
-    <div style={{ width: '100%', height: '100%', background: '#000' }}>
-      <Canvas camera={{ position: [0, 0, 5], fov: 42 }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={2} />
+      <group ref={groupRef}>
         
-        <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.4}>
-          <group>
-            {/* THE NEURAL STRUCTURE (The Shell) */}
-            <mesh ref={shellRef}>
-              <sphereGeometry args={[1.5, 48, 48]} />
-              <meshPhongMaterial
-                color={themeColor}
-                wireframe
-                transparent
-                opacity={0.3}
+        {/* EXTERNAL ANATOMICAL SHELL (Preserved Ghost Shell) */}
+        <mesh>
+          <sphereGeometry args={[2.1, 64, 64]} />
+          <meshPhongMaterial 
+            color="#111" 
+            transparent 
+            opacity={viewMode === "WIRE" ? 0.2 : 0.05} 
+            wireframe={viewMode === "WIRE"} 
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* 3D VOXEL RECONSTRUCTION LAYER */}
+        {voxelData && (
+          <points ref={pointsRef}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={voxelData.positions.length / 3}
+                array={voxelData.positions}
+                itemSize={3}
               />
+              <bufferAttribute
+                attach="attributes-color"
+                count={voxelData.colors.length / 3}
+                array={voxelData.colors}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <pointsMaterial 
+              size={0.045} 
+              vertexColors 
+              transparent 
+              opacity={0.85} 
+              sizeAttenuation={true} 
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </points>
+        )}
+
+        {/* CLINICAL ANOMALY MARKER (Preserved Feature) */}
+        {active && result?.coords && (
+          <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+            <mesh position={[result.coords.x, result.coords.y, result.coords.z]}>
+              <sphereGeometry args={[0.3, 32, 32]} />
+              <meshStandardMaterial 
+                color={result.severity === 'CRITICAL' ? "#ff0000" : "#ffaa00"} 
+                emissive={result.severity === 'CRITICAL' ? "#ff0000" : "#ffaa00"}
+                emissiveIntensity={4}
+                transparent
+                opacity={0.9}
+              />
+              <pointLight color="red" intensity={5} distance={3} />
             </mesh>
-
-            {/* THE TUMOUR STRUCTURE (The Core) */}
-            <ClinicalAnomaly active={active} result={result} />
-          </group>
-        </Float>
-
-        <Environment preset="night" />
-        <OrbitControls enablePan={false} minDistance={3} maxDistance={8} />
-        <ContactShadows position={[0, -2.2, 0]} opacity={0.4} scale={10} blur={2.5} />
-      </Canvas>
-    </div>
+          </Float>
+        )}
+      </group>
+    </>
   );
 }

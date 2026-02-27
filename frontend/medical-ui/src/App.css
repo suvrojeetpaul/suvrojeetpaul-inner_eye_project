@@ -1,355 +1,169 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Quicksand:wght@400;700&family=Marcellus&display=swap');
-
-/* --- GLOBAL RESET --- */
-* { box-sizing: border-box; }
+/* --- CLINICAL THEME & ROOT VARIABLES --- */
+:root {
+  --neon-blue: #4ea8ff;
+  --bg-black: #050505;
+  --panel-bg: #0b0b0b;
+  --border-glow: rgba(78, 168, 255, 0.2);
+  --warning-gold: #ff9d00;
+  --critical-red: #ff4400;
+  --terminal-green: #00ff41;
+}
 
 body {
-  margin: 0;
-  padding: 0;
-  background-color: #050505; /* Hard-coded background to prevent white screen */
-  color: #ffcc33;
-  font-family: 'Quicksand', sans-serif;
-  overflow-x: hidden;
+  margin: 0; padding: 0; background-color: var(--bg-black);
+  color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden;
 }
 
-/* --- 🌌 PORTAL PAGE STYLES --- */
+/* --- BACKGROUND GRID --- */
+.grid-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    linear-gradient(var(--border-glow) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-glow) 1px, transparent 1px);
+  background-size: 50px 50px; z-index: -1; opacity: 0.3;
+}
+
+/* --- LANDING PORTAL --- */
 .portal-master-container {
-  height: 100vh;
-  width: 100vw;
-  background: radial-gradient(circle at center, #1a0b2e 0%, #050505 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.nebula-background {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: url('https://www.transparenttextures.com/patterns/stardust.png');
-  opacity: 0.3;
-  pointer-events: none;
+  height: 100vh; display: flex; flex-direction: column; 
+  justify-content: center; align-items: center;
 }
 
 .main-wizard-title {
-  font-family: 'Cinzel', serif;
-  font-size: 3.5rem;
-  color: #ffffff;
-  text-shadow: 0 0 20px #ffcc33;
-  margin-bottom: 50px;
-  letter-spacing: 4px;
-  z-index: 10;
+  font-size: 3.5rem; letter-spacing: 12px; margin: 0;
+  text-shadow: 0 0 20px var(--neon-blue);
 }
 
-.portal-selection-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 260px);
-  gap: 30px;
-  z-index: 10;
-}
+.portal-selection-grid { display: flex; gap: 30px; margin-top: 50px; }
 
 .portal-magic-card {
-  background: rgba(15, 15, 15, 0.9);
-  border: 2px solid #ffcc33;
-  padding: 40px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  position: relative;
+  width: 240px; height: 140px; border: 1px solid var(--neon-blue);
+  background: rgba(0, 0, 0, 0.6); position: relative; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: 0.4s;
 }
 
-/* Asymmetrical shapes from your reference image */
-.shape-0 { border-radius: 50px 5px 50px 5px; }
-.shape-1 { border-radius: 5px 5px 5px 5px; }
-.shape-2 { border-radius: 5px 50px 5px 50px; }
-
-.portal-magic-card:hover {
-  transform: translateY(-15px);
-  box-shadow: 0 0 40px rgba(255, 204, 51, 0.4);
-  background: rgba(255, 204, 51, 0.1);
+.portal-magic-card:hover { 
+  transform: translateY(-10px); box-shadow: 0 0 30px var(--neon-blue); 
+  background: rgba(78, 168, 255, 0.1);
 }
 
-.card-emoji { font-size: 3.5rem; display: block; margin-bottom: 15px; }
-.card-label { font-family: 'Cinzel'; color: #ffcc33; margin: 0; font-size: 1.6rem; }
-.card-sub-label { font-size: 0.75rem; color: #fff; opacity: 0.6; margin-top: 10px; letter-spacing: 2px; }
-
-.enter-digital-realm-btn {
-  margin-top: 60px;
-  padding: 18px 60px;
-  background: linear-gradient(180deg, #ffcc33 0%, #aa8800 100%);
-  border: none;
-  border-radius: 4px;
-  font-family: 'Cinzel';
-  font-weight: bold;
-  font-size: 1.1rem;
-  cursor: pointer;
-  box-shadow: 0 0 20px #ffcc33;
-  z-index: 10;
+.scanner-line {
+  position: absolute; width: 100%; height: 2px; background: var(--neon-blue);
+  box-shadow: 0 0 10px var(--neon-blue); animation: scan 4s infinite linear;
 }
 
-/* --- 🏥 SANCTUM DIAGNOSTIC STYLES --- */
+@keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+/* --- WORKSTATION HUD --- */
 .sanctum-app-wrapper {
-  background-color: #050505;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column; height: 100vh;
+  padding: 15px; box-sizing: border-box;
 }
 
 .sanctum-header-hud {
-  height: 80px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 30px;
-  border-bottom: 2px solid #ffcc33;
-  background-color: #0a0a0a;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-}
-
-.chamber-identity-text {
-  font-family: 'Cinzel';
-  font-size: 1.8rem;
-  color: #ffcc33;
-  text-shadow: 0 0 10px #ff6600;
-}
-
-.magic-input-field {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid #ffcc33;
-  color: white;
-  padding: 5px;
-  font-family: 'Marcellus';
-  text-align: right;
-}
-
-.sanctum-main-layout {
-  display: grid;
-  grid-template-columns: 350px 1fr 350px;
-  gap: 20px;
-  padding: 20px;
-  flex: 1;
-}
-
-.sanctum-panel-box {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid #ffcc33;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(10px);
-}
-
-.mystic-header-label {
-  font-family: 'Cinzel';
-  font-size: 0.8rem;
-  border-bottom: 1px solid rgba(255, 204, 51, 0.3);
-  margin-bottom: 15px;
-  padding-bottom: 5px;
-}
-
-/* 2D MIRROR VIEWPORT */
-.mirror-viewport-circle {
-  width: 250px; height: 250px;
-  border-radius: 50%;
-  border: 3px double #ffcc33;
-  margin: 0 auto 20px;
-  overflow: hidden;
-  box-shadow: 0 0 25px rgba(255, 102, 0, 0.5);
-  background: #000;
-}
-
-.scan-img-relic { width: 100%; height: 100%; object-fit: cover; }
-
-/* 3D VIEWPORT */
-.three-dimension-viewport {
-  height: 500px;
-  width: 100%;
-  position: relative;
-}
-
-/* --- THE SCROLLBAR FIX --- */
-.history-scrollable-list {
-  flex: 1;
-  overflow-y: scroll !important; /* Force internal scrollbar */
-  max-height: 400px;
-  padding-right: 10px;
-  margin-bottom: 20px;
-}
-
-.history-scrollable-list::-webkit-scrollbar {
-  width: 8px;
-  display: block !important;
-}
-
-.history-scrollable-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.history-scrollable-list::-webkit-scrollbar-thumb {
-  background: #ffcc33;
-  border-radius: 10px;
-}
-
-.history-relic-item {
-  padding: 12px;
-  background: rgba(255, 204, 51, 0.05);
-  border-left: 3px solid #ffcc33;
-  margin-bottom: 10px;
-}
-
-.terminal-log-output {
-  height: 120px;
-  background: #000;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 0.7rem;
-  color: #ff6600;
-  overflow-y: auto;
-  border: 1px solid #333;
-}
-
-/* BUTTONS */
-.mystic-gold-button {
-  background: transparent;
-  border: 1px solid #ffcc33;
-  color: #ffcc33;
-  padding: 12px;
-  margin-top: 10px;
-  font-family: 'Cinzel';
-  cursor: pointer;
-  text-align: center;
-  transition: 0.3s;
-}
-
-.mystic-gold-button.glow-effect:hover {
-  background: #ffcc33;
-  color: #000;
-  box-shadow: 0 0 20px #ffcc33;
-}
-
-.obliterate-records-btn {
-  background: transparent;
-  color: #8b0000;
-  border: 1px solid #8b0000;
-  padding: 10px;
-  margin-top: auto;
-  cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border-glow); padding-bottom: 15px; margin-bottom: 15px;
 }
 
 .back-portal-button {
-  background: transparent;
-  border: 1px solid #ffcc33;
-  color: #ffcc33;
-  padding: 5px 15px;
-  cursor: pointer;
-}
-/* ... Previous CSS stays same --- Add these below */
-
-.three-dimension-viewport {
-  height: 550px;
-  width: 100%;
-  cursor: grab;
-  /* Add a subtle vignette to make the center glow pop */
-  background: radial-gradient(circle, rgba(255,204,51,0.05) 0%, rgba(0,0,0,0) 70%);
+  background: transparent; border: 1px solid #fff; color: #fff;
+  padding: 6px 15px; cursor: pointer; font-size: 0.7rem; font-weight: bold;
 }
 
-.diagnostic-decree-panel {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  background: rgba(20, 20, 20, 0.9);
-  border: 1px solid #ffcc33;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 20px rgba(255, 204, 51, 0.2);
-  pointer-events: none; /* Allows clicking through to 3D model */
+.breadcrumb-path { font-size: 0.8rem; color: var(--warning-gold); }
+
+/* --- MAIN LAYOUT (STRICT CONSTRAINTS) --- */
+.sanctum-main-layout {
+  display: flex; flex: 1; gap: 15px; overflow: hidden;
+  height: calc(100vh - 120px);
 }
 
-.decree-header {
-  font-family: 'Cinzel';
-  color: #ffcc33;
-  margin: 0 0 10px 0;
-  font-size: 1rem;
-  text-align: center;
-  border-bottom: 1px solid rgba(255, 204, 51, 0.3);
+.sanctum-panel-box {
+  background: var(--panel-bg); border: 1px solid var(--border-glow);
+  padding: 15px; display: flex; flex-direction: column; overflow: hidden;
 }
 
-.decree-data-grid {
-  display: flex;
-  justify-content: space-around;
-  font-family: 'Marcellus';
+.side-column { flex: 0 0 320px; }
+.main-column { flex: 1; position: relative; }
+
+/* THE FIX: IMAGE VIEWPORT LOCK */
+.mirror-viewport-container {
+  width: 100%; height: 320px; /* FIXED HEIGHT */
+  background: #000; border: 1px solid #222; margin: 15px 0;
+  position: relative; display: flex; justify-content: center;
+  align-items: center; overflow: hidden;
 }
 
-.data-bit {
-  font-size: 0.9rem;
+.viewport-inner-lock {
+    width: 100%; height: 100%; display: flex; 
+    justify-content: center; align-items: center;
 }
 
-/* Make sure the glow effect on buttons is noticeable */
-.glow-effect {
-  box-shadow: 0 0 10px rgba(255, 204, 51, 0.3);
-}
-.glow-effect:hover {
-  box-shadow: 0 0 25px #ffcc33;
-}
-/* TAB SYSTEM */
-.tab-header {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  border-bottom: 1px solid rgba(255, 204, 51, 0.3);
+.scan-img-relic {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; /* ENFORCE SCALING WITHIN BOX */
 }
 
-.tab-header button {
-  background: transparent;
-  border: none;
-  color: #ffcc33;
-  font-family: 'Cinzel';
-  padding: 5px 10px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: 0.3s;
+.scanning-bar-animation {
+  position: absolute; width: 100%; height: 4px; background: var(--neon-blue);
+  box-shadow: 0 0 20px var(--neon-blue); animation: axialScan 2s infinite linear;
 }
 
-.tab-header button.active {
-  opacity: 1;
-  border-bottom: 2px solid #ffcc33;
+@keyframes axialScan { 0% { top: 0; } 100% { top: 100%; } }
+
+/* --- 3D VIEWPORT & HUD --- */
+.three-dimension-viewport-container { flex: 1; background: #000; position: relative; }
+
+.viewport-hud-overlay {
+  position: absolute; bottom: 15px; left: 15px;
+  background: rgba(0,0,0,0.7); padding: 10px; border-left: 2px solid var(--neon-blue);
 }
 
-/* REPORT PANEL */
-.report-details-panel {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 15px;
-  border: 1px dashed #ffcc33;
-  font-family: 'Marcellus', serif;
+.hud-line { font-family: monospace; font-size: 0.7rem; margin-bottom: 4px; }
+
+/* --- TABS & ANALYTICS --- */
+.tab-navigation { display: flex; gap: 5px; margin-bottom: 15px; }
+
+.tab-navigation button {
+  flex: 1; background: #151515; border: none; color: #666; 
+  padding: 10px; cursor: pointer; font-size: 0.7rem;
 }
 
-.report-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.tab-navigation button.active {
+  background: var(--neon-blue); color: #000; font-weight: bold;
 }
 
-.report-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  border-bottom: 1px solid rgba(255, 204, 51, 0.1);
-  padding-bottom: 5px;
+.data-row { display: flex; flex-direction: column; margin-bottom: 15px; }
+.data-row .label { font-size: 0.65rem; color: #888; }
+.data-row .value { font-size: 1.1rem; font-weight: bold; }
+
+/* --- TERMINAL LOGS --- */
+.terminal-log-output {
+  background: #000; border: 1px solid #222; height: 140px;
+  padding: 10px; overflow-y: auto; font-family: monospace;
 }
 
-.report-item span { color: #888; }
-.report-item strong { color: #ffcc33; }
+.log-line { color: var(--terminal-green); font-size: 0.7rem; margin-bottom: 4px; }
 
-.report-summary {
-  margin-top: 15px;
-  font-size: 0.8rem;
-  color: #fff;
-  line-height: 1.4;
-  font-style: italic;
-  opacity: 0.8;
+/* --- BUTTONS --- */
+.mystic-gold-button {
+  width: 100%; background: transparent; border: 1px solid var(--neon-blue);
+  color: var(--neon-blue); padding: 12px; margin-top: 10px;
+  cursor: pointer; font-size: 0.8rem; text-transform: uppercase;
+}
+
+.mystic-gold-button.primary { background: var(--neon-blue); color: #000; font-weight: bold; }
+
+.obliterate-records-btn {
+  margin-top: auto; background: transparent; border: 1px solid var(--critical-red);
+  color: var(--critical-red); padding: 10px; font-size: 0.7rem; cursor: pointer;
+}
+
+.blue { color: var(--neon-blue); }
+.red { color: var(--critical-red); }
+.green { color: var(--terminal-green); }
+.mystic-header-label {
+  font-size: 0.75rem; color: var(--warning-gold);
+  border-left: 2px solid var(--warning-gold); padding-left: 10px; margin-bottom: 10px;
 }
