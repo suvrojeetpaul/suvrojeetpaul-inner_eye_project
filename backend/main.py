@@ -17,9 +17,14 @@ from scipy.ndimage import zoom
 
 # MONAI / PyTorch Imports for 3D Segmentation
 from monai.networks.nets import UNet
+# Updated MONAI Imports for Compatibility
 from monai.transforms import (
-    Compose, EnsureChannelFirstd, LoadImaged, Resized, 
-    ScaleIntensityd, ToTensor, EnsureTyped
+    Compose, 
+    EnsureChannelFirstd,  # Replaces AddChanneld
+    LoadImaged, 
+    Resized, 
+    ScaleIntensityd, 
+    EnsureTyped
 )
 
 # --- SYSTEM INITIALIZATION ---
