@@ -64,6 +64,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=SecurityConfig.ALLOWED_ORIGINS,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=SecurityConfig.ALLOWED_METHODS,
     allow_headers=SecurityConfig.ALLOWED_HEADERS,

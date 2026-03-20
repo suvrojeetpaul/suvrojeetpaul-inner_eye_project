@@ -24,6 +24,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "postinstall": "node scripts/fix-mediapipe-sourcemap.js",
+    "fix:mediapipe-sourcemap": "node scripts/fix-mediapipe-sourcemap.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

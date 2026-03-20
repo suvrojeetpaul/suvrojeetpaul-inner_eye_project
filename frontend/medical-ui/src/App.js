@@ -93,6 +93,7 @@ function App() {
   const [authFormPassword, setAuthFormPassword] = useState('');
   const [authFormRole, setAuthFormRole] = useState('patient');
   const [authFormInviteCode, setAuthFormInviteCode] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [language, setLanguage] = useState('en');
@@ -320,6 +321,12 @@ function App() {
       return;
     }
 
+    const normalizedUsername = authFormUsername.trim().toLowerCase();
+    if (!/^[a-z0-9_.-]{3,32}$/.test(normalizedUsername)) {
+      setAuthMessage('Username must be 3-32 chars: lowercase letters, numbers, underscore (_), hyphen (-), or dot (.).');
+      return;
+    }
+
     setAuthLoading(true);
     setAuthMessage('');
     try {
@@ -328,7 +335,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: authFormUsername.trim(),
+          username: normalizedUsername,
           password: authFormPassword,
           role: authFormMode === 'signup' ? authFormRole : undefined,
           admin_invite_code: authFormMode === 'signup' && authFormInviteCode.trim() ? authFormInviteCode.trim() : undefined,
@@ -1150,13 +1157,22 @@ function App() {
                 value={authFormUsername}
                 onChange={(e) => setAuthFormUsername(e.target.value)}
               />
+              <div className="auth-helper-text">Use 3-32 lowercase characters: a-z, 0-9, underscore (_), hyphen (-), dot (.).</div>
               <input
                 className="magic-input-field"
-                type="password"
+                type={showAuthPassword ? 'text' : 'password'}
                 placeholder="Password (minimum 8 characters)"
                 value={authFormPassword}
                 onChange={(e) => setAuthFormPassword(e.target.value)}
               />
+              <label className="consent-checkbox-row compact auth-show-password-row">
+                <input
+                  type="checkbox"
+                  checked={showAuthPassword}
+                  onChange={(e) => setShowAuthPassword(e.target.checked)}
+                />
+                Show password
+              </label>
               {authFormMode === 'signup' && (
                 <>
                   <select
@@ -1171,7 +1187,7 @@ function App() {
                   {authFormRole !== 'patient' && (
                     <input
                       className="magic-input-field"
-                      type="password"
+                      type={showAuthPassword ? 'text' : 'password'}
                       placeholder="Admin invite code"
                       value={authFormInviteCode}
                       onChange={(e) => setAuthFormInviteCode(e.target.value)}

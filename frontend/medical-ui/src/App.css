@@ -732,6 +732,19 @@ body {
   padding: 8px 10px;
 }
 
+.auth-helper-text {
+  margin-top: -4px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.auth-show-password-row {
+  margin-top: -2px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
 .medical-disclaimer-banner {
   margin: 6px auto 14px;
   width: 100%;
