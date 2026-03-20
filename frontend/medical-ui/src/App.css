@@ -2,25 +2,25 @@
 
 /* --- CLINICAL THEME & ROOT VARIABLES --- */
 :root {
-  --neon-blue: #4ea8ff;
-  --neon-blue-dim: rgba(78, 168, 255, 0.6);
-  --neon-blue-glow: 0 0 20px rgba(78, 168, 255, 0.35), 0 0 50px rgba(78, 168, 255, 0.1);
-  --bg-black: #030508;
-  --bg-deep: #050a12;
-  --panel-bg: #080e18;
-  --panel-bg-2: rgba(8, 16, 28, 0.85);
-  --glass-bg: rgba(8, 16, 28, 0.6);
-  --glass-bg-hover: rgba(11, 22, 38, 0.75);
-  --border-glow: rgba(78, 168, 255, 0.18);
-  --border-active: rgba(78, 168, 255, 0.55);
-  --warning-gold: #ffc142;
-  --warning-gold-dim: rgba(255, 193, 66, 0.7);
+  --neon-blue: #3ecfbe;
+  --neon-blue-dim: rgba(62, 207, 190, 0.62);
+  --neon-blue-glow: 0 0 20px rgba(62, 207, 190, 0.34), 0 0 52px rgba(62, 207, 190, 0.12);
+  --bg-black: #04070d;
+  --bg-deep: #07111d;
+  --panel-bg: #0b1627;
+  --panel-bg-2: rgba(10, 21, 36, 0.86);
+  --glass-bg: rgba(10, 21, 36, 0.64);
+  --glass-bg-hover: rgba(13, 27, 45, 0.78);
+  --border-glow: rgba(62, 207, 190, 0.2);
+  --border-active: rgba(62, 207, 190, 0.58);
+  --warning-gold: #ffb84d;
+  --warning-gold-dim: rgba(255, 184, 77, 0.72);
   --critical-red: #ff4444;
-  --terminal-green: #00ff87;
+  --terminal-green: #4ef0a5;
   --success-green: #4ade80;
-  --text-primary: #e8f4ff;
-  --text-secondary: #8db8e8;
-  --text-muted: #4a6a8a;
+  --text-primary: #edf7ff;
+  --text-secondary: #9dc8e8;
+  --text-muted: #5f82a3;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -684,9 +684,10 @@ body {
 .auth-card {
   margin: 12px auto 18px;
   max-width: 560px;
-  border: 1px solid rgba(78, 168, 255, 0.3);
+  border: 1px solid rgba(62, 207, 190, 0.34);
   border-radius: var(--radius-lg);
-  background: rgba(8, 18, 34, 0.58);
+  background: linear-gradient(155deg, rgba(9, 22, 38, 0.84), rgba(8, 16, 28, 0.72));
+  box-shadow: 0 8px 28px rgba(3, 10, 20, 0.42), inset 0 1px 0 rgba(114, 229, 211, 0.14);
   padding: 14px;
   display: grid;
   gap: 10px;
@@ -706,9 +707,9 @@ body {
 
 .auth-mode-toggle button {
   flex: 1;
-  border: 1px solid rgba(78, 168, 255, 0.26);
+  border: 1px solid rgba(62, 207, 190, 0.28);
   border-radius: var(--radius-sm);
-  background: rgba(8, 18, 30, 0.45);
+  background: rgba(9, 20, 34, 0.58);
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 700;
@@ -717,9 +718,9 @@ body {
 }
 
 .auth-mode-toggle button.active {
-  border-color: rgba(78, 168, 255, 0.6);
-  color: #9fd5ff;
-  background: rgba(78, 168, 255, 0.15);
+  border-color: rgba(62, 207, 190, 0.68);
+  color: #c6fff8;
+  background: rgba(62, 207, 190, 0.18);
 }
 
 .auth-message {
@@ -1437,16 +1438,16 @@ body {
 }
 
 .mystic-gold-button.primary { 
-  background: linear-gradient(135deg, #3e9cff, #2a81e0);
-  color: #fff;
+  background: linear-gradient(135deg, #35cfbe, #1f9a8c);
+  color: #f5fffd;
   font-weight: 800;
-  border-color: rgba(78, 168, 255, 0.5);
-  box-shadow: 0 4px 16px rgba(78, 168, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  border-color: rgba(62, 207, 190, 0.58);
+  box-shadow: 0 6px 18px rgba(30, 170, 154, 0.3), inset 0 1px 0 rgba(232, 255, 251, 0.18);
 }
 
 .mystic-gold-button.primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5aaeff, #3a8dff);
-  box-shadow: 0 6px 22px rgba(78, 168, 255, 0.4), inset 0 1px 0 rgba(255,255,255,0.18);
+  background: linear-gradient(135deg, #47dfcd, #28b3a3);
+  box-shadow: 0 9px 24px rgba(30, 170, 154, 0.44), inset 0 1px 0 rgba(232, 255, 251, 0.24);
   transform: translateY(-2px);
 }
 
@@ -1702,6 +1703,12 @@ body {
   justify-content: center;
   margin: 14px auto 10px;
   flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid rgba(62, 207, 190, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 18, 30, 0.52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .app-control-bar .magic-input-field {
@@ -1724,17 +1731,17 @@ body {
 }
 
 .theme-light {
-  --bg-black: #f2f7fb;
-  --bg-deep: #ebf2fa;
+  --bg-black: #f4fbfb;
+  --bg-deep: #eaf7f5;
   --panel-bg: #ffffff;
   --panel-bg-2: rgba(255, 255, 255, 0.95);
   --glass-bg: rgba(255, 255, 255, 0.88);
   --glass-bg-hover: rgba(255, 255, 255, 0.97);
-  --border-glow: rgba(34, 109, 179, 0.18);
-  --border-active: rgba(34, 109, 179, 0.5);
-  --text-primary: #132437;
-  --text-secondary: #2d4f6f;
-  --text-muted: #5c7692;
+  --border-glow: rgba(37, 153, 139, 0.2);
+  --border-active: rgba(37, 153, 139, 0.54);
+  --text-primary: #11313d;
+  --text-secondary: #285567;
+  --text-muted: #4f7686;
 }
 
 .theme-light .portal-master-container {

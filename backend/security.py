@@ -32,7 +32,7 @@ class SecurityConfig:
         "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
     ).split(",")
     ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-CSRF-Token"]
+    ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"]
     
     # Rate Limiting
     RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
@@ -117,6 +117,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
+            "connect-src 'self' http://127.0.0.1:8000 http://localhost:8000 ws://127.0.0.1:8000 ws://localhost:8000; "
             "img-src 'self' data:; "
             "font-src 'self'"
         )
