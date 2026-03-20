@@ -1,0 +1,279 @@
+{
+  "India": {
+    "Andhra Pradesh": {
+      "Visakhapatnam": ["Visakhapatnam", "Vizag", "Port Area"],
+      "Krishna": ["Vijayawada", "Machilipatnam"],
+      "Guntur": ["Guntur", "Tenali"],
+      "Chittoor": ["Chittoor"]
+    },
+    "West Bengal": {
+      "Kolkata": ["Kolkata", "Salt Lake", "Park Circus"],
+      "Howrah": ["Howrah", "Maheshtala"],
+      "Darjeeling": ["Siliguri", "Darjeeling", "Kurseong"],
+      "Nadia": ["Kalyani", "Krishnanagar", "Nabadwip"],
+      "Birbhum": ["Santiniketan", "Bolpur"],
+      "Asansol": ["Asansol", "Burnpur"]
+    },
+    "Maharashtra": {
+      "Mumbai": ["Mumbai", "Fort", "Bandra", "Andheri"],
+      "Pune": ["Pune", "Hadapsar", "Viman Nagar"],
+      "Nagpur": ["Nagpur", "Civil Lines"],
+      "Thane": ["Thane", "Kalyan"],
+      "Aurangabad": ["Aurangabad"]
+    },
+    "Karnataka": {
+      "Bangalore": ["Bangalore", "Bengaluru", "Koramangala", "Whitefield"],
+      "Mysore": ["Mysore", "Mysuru"],
+      "Mangalore": ["Mangalore", "Mangaluru"],
+      "Hubli": ["Hubli", "Dharwad"]
+    },
+    "Tamil Nadu": {
+      "Chennai": ["Chennai", "Madras", "T. Nagar"],
+      "Coimbatore": ["Coimbatore", "Peelamedu"],
+      "Madurai": ["Madurai", "Meenakshi Nagar"],
+      "Salem": ["Salem"]
+    },
+    "Delhi": {
+      "New Delhi": ["New Delhi", "Central Delhi", "South Delhi"],
+      "East Delhi": ["East Delhi", "Shahdara"]
+    },
+    "Rajasthan": {
+      "Jaipur": ["Jaipur", "C-Scheme"],
+      "Jodhpur": ["Jodhpur"],
+      "Udaipur": ["Udaipur"]
+    }
+  },
+  "United States": {
+    "California": {
+      "Los Angeles County": ["Los Angeles", "Santa Monica", "Long Beach", "Beverly Hills"],
+      "San Francisco County": ["San Francisco", "Downtown"],
+      "San Diego County": ["San Diego", "Downtown SD"],
+      "Orange County": ["Anaheim", "Santa Ana"]
+    },
+    "New York": {
+      "New York County": ["New York", "Manhattan", "Midtown"],
+      "Kings County": ["Brooklyn", "Downtown Brooklyn"],
+      "Queens County": ["Queens", "Flushing"]
+    },
+    "Texas": {
+      "Harris County": ["Houston", "Downtown Houston"],
+      "Dallas County": ["Dallas", "Downtown Dallas"],
+      "Bexar County": ["San Antonio"]
+    },
+    "Florida": {
+      "Miami-Dade County": ["Miami", "Downtown Miami"],
+      "Hillsborough County": ["Tampa"],
+      "Duval County": ["Jacksonville"]
+    },
+    "Illinois": {
+      "Cook County": ["Chicago", "Downtown Chicago"]
+    },
+    "Pennsylvania": {
+      "Philadelphia County": ["Philadelphia", "Center City"]
+    }
+  },
+  "United Kingdom": {
+    "England": {
+      "London": ["London", "Westminster", "Kensington", "Canary Wharf"],
+      "Greater Manchester": ["Manchester", "City Centre"],
+      "West Midlands": ["Birmingham", "City Centre"],
+      "Leeds": ["Leeds", "City Centre"],
+      "Liverpool": ["Liverpool"]
+    },
+    "Scotland": {
+      "City of Edinburgh": ["Edinburgh", "City Centre"],
+      "Glasgow City": ["Glasgow", "City Centre"]
+    },
+    "Wales": {
+      "Cardiff": ["Cardiff", "City Centre"],
+      "Swansea": ["Swansea"]
+    }
+  },
+  "Canada": {
+    "Ontario": {
+      "Toronto": ["Toronto", "Downtown", "Bay Street"],
+      "Ottawa": ["Ottawa", "Downtown"]
+    },
+    "Quebec": {
+      "Montreal": ["Montreal", "Downtown"],
+      "Quebec City": ["Quebec City"]
+    },
+    "British Columbia": {
+      "Vancouver": ["Vancouver", "Downtown"],
+      "Victoria": ["Victoria"]
+    },
+    "Alberta": {
+      "Calgary": ["Calgary"],
+      "Edmonton": ["Edmonton"]
+    }
+  },
+  "Germany": {
+    "Berlin": {
+      "Mitte": ["Berlin Mitte", "City Center", "Museum Island"],
+      "Charlottenburg": ["Berlin West"],
+      "Steglitz": ["Steglitz"]
+    },
+    "Bavaria": {
+      "Munich": ["Munich", "München", "Altstadt"],
+      "Nuremberg": ["Nuremberg", "Nürnberg"]
+    },
+    "Hesse": {
+      "Frankfurt": ["Frankfurt", "Frankfurt am Main", "Sachsenhausen"]
+    },
+    "North Rhine-Westphalia": {
+      "Cologne": ["Cologne", "Köln"],
+      "Düsseldorf": ["Düsseldorf"]
+    }
+  },
+  "France": {
+    "Île-de-France": {
+      "Paris": ["Paris", "Arrondissement 1", "Arrondissement 5", "Marais"],
+      "Boulogne-Billancourt": ["Boulogne"],
+      "Versailles": ["Versailles"]
+    },
+    "Provence-Alpes-Côte d'Azur": {
+      "Bouches-du-Rhône": ["Marseille", "Vieux Port"],
+      "Alpes-Maritimes": ["Nice", "Cannes"]
+    },
+    "Auvergne-Rhône-Alpes": {
+      "Rhône": ["Lyon", "City Centre"]
+    }
+  },
+  "Spain": {
+    "Community of Madrid": {
+      "Madrid": ["Madrid", "Centro", "Gran Vía"]
+    },
+    "Catalonia": {
+      "Barcelona": ["Barcelona", "Eixample", "Gothic Quarter"]
+    },
+    "Andalusia": {
+      "Seville": ["Seville", "City Centre"]
+    }
+  },
+  "Italy": {
+    "Lazio": {
+      "Rome": ["Rome", "Roma", "Centro Storico", "Vatican"]
+    },
+    "Lombardy": {
+      "Milan": ["Milan", "Milano", "Duomo"]
+    },
+    "Veneto": {
+      "Venice": ["Venice", "Venezia", "San Marco"]
+    }
+  },
+  "Japan": {
+    "Tokyo": {
+      "Shinjuku": ["Shinjuku", "Shibuya", "Harajuku"],
+      "Chiyoda": ["Chiyoda", "Imperial Palace", "Marunouchi"],
+      "Minato": ["Minato", "Roppongi", "Odaiba"]
+    },
+    "Osaka": {
+      "Osaka": ["Osaka", "Dotonbori", "Namba"]
+    },
+    "Kanagawa": {
+      "Yokohama": ["Yokohama", "Minato Mirai"]
+    },
+    "Kyoto": {
+      "Kyoto": ["Kyoto", "Gion"]
+    }
+  },
+  "South Korea": {
+    "Seoul": {
+      "Seoul": ["Seoul", "Gangnam", "Myeongdong", "Jongno"]
+    },
+    "Busan": {
+      "Busan": ["Busan", "Haeundae"]
+    }
+  },
+  "China": {
+    "Beijing": {
+      "Beijing": ["Beijing", "Chaoyang", "Haidian"]
+    },
+    "Shanghai": {
+      "Shanghai": ["Shanghai", "Huangpu", "Pudong"]
+    },
+    "Guangdong": {
+      "Shenzhen": ["Shenzhen", "Luohu"],
+      "Guangzhou": ["Guangzhou"]
+    }
+  },
+  "Singapore": {
+    "Singapore": {
+      "Central": ["Marina Bay", "Downtown", "CBD"],
+      "East": ["Tampines", "Bedok"],
+      "West": ["Jurong", "Bukit Batok"],
+      "North": ["Yishun", "Woodlands"]
+    }
+  },
+  "Australia": {
+    "New South Wales": {
+      "Sydney": ["Sydney", "CBD", "Darling Harbour", "Bondi"]
+    },
+    "Victoria": {
+      "Melbourne": ["Melbourne", "CBD", "Southbank"]
+    },
+    "Queensland": {
+      "Brisbane": ["Brisbane", "City Centre"]
+    },
+    "Western Australia": {
+      "Perth": ["Perth", "City Centre"]
+    }
+  },
+  "United Arab Emirates": {
+    "Dubai": {
+      "Dubai": ["Dubai Marina", "Downtown Dubai", "Jumeirah", "Business Bay"]
+    },
+    "Abu Dhabi": {
+      "Abu Dhabi": ["Abu Dhabi", "City Centre"]
+    }
+  },
+  "Saudi Arabia": {
+    "Riyadh": {
+      "Riyadh": ["Riyadh", "Al Olaya", "Downtown"]
+    }
+  },
+  "Brazil": {
+    "São Paulo": {
+      "São Paulo": ["São Paulo", "Jardins", "Vila Mariana", "Pinheiros"]
+    },
+    "Rio de Janeiro": {
+      "Rio de Janeiro": ["Rio de Janeiro", "Centro", "Zona Sul"]
+    }
+  },
+  "Mexico": {
+    "Mexico City": {
+      "Mexico City": ["Mexico City", "CDMX", "Benito Juárez", "Polanco"]
+    }
+  },
+  "Thailand": {
+    "Bangkok": {
+      "Bangkok": ["Bangkok", "Silom", "Sukhumvit", "Sathorn"]
+    }
+  },
+  "Indonesia": {
+    "Jakarta": {
+      "Jakarta": ["Jakarta", "Senayan", "Menteng"]
+    }
+  },
+  "Philippines": {
+    "Metro Manila": {
+      "Manila": ["Manila", "Makati", "BGC"]
+    }
+  },
+  "Malaysia": {
+    "Kuala Lumpur": {
+      "Kuala Lumpur": ["Kuala Lumpur", "Downtown", "Mid Valley"]
+    }
+  },
+  "New Zealand": {
+    "Auckland": {
+      "Auckland": ["Auckland", "City Centre", "Central"]
+    }
+  },
+  "South Africa": {
+    "Gauteng": {
+      "Johannesburg": ["Johannesburg", "Sandton"],
+      "Pretoria": ["Pretoria"]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.log
+*.sqlite3
+.venv/
+venv/
+.env
+.env.*
+
+# Node
+node_modules/
+**/node_modules/
+
+# Build output
+build/
+dist/
+frontend/medical-ui/build/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Local test artifacts
+security_test_results.json
+backend/security.log

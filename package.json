@@ -1,4 +1,12 @@
 {
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "start:frontend": "npm --prefix frontend/medical-ui start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
   "dependencies": {
     "lucide-react": "^0.575.0",
     "react-router-dom": "^7.13.0"

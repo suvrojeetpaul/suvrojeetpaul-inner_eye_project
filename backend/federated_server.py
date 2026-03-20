@@ -1,5 +1,7 @@
 import sys
 import signal
+import os
+import subprocess
 
 # --- THE ABSOLUTE WINDOWS FIX ---
 # We must manually add SIGQUIT to the signal module so flwr doesn't crash on import
@@ -8,8 +10,43 @@ if sys.platform == "win32":
         # We assign it to an existing Windows signal (SIGBREAK)
         setattr(signal, 'SIGQUIT', signal.SIGBREAK)
 
-# NOW we can safely import flwr
-import flwr as fl
+# Try importing Flower. If current interpreter cannot provide it,
+# transparently re-exec this script with a known-good interpreter.
+try:
+    import flwr as fl
+except ModuleNotFoundError:
+    fallback_candidates = [
+        os.getenv("DISHA_PYTHON", "").strip(),
+        r"C:\Users\Arjaa Chatterjee\.conda\envs\myenv\python.exe",
+        r"C:\ProgramData\miniconda3\python.exe",
+    ]
+    current = os.path.abspath(sys.executable)
+
+    for candidate in fallback_candidates:
+        if not candidate:
+            continue
+        candidate_abs = os.path.abspath(candidate)
+        if candidate_abs == current:
+            continue
+        if os.path.exists(candidate_abs):
+            print(f"[FED_SERVER] flwr missing in {current}")
+            print(f"[FED_SERVER] Relaunching with {candidate_abs}")
+            script_path = os.path.abspath(__file__)
+            relaunch_args = [candidate_abs, script_path, *sys.argv[1:]]
+
+            if sys.platform == "win32":
+                # subprocess preserves spaced paths on Windows better than os.execv.
+                completed = subprocess.run(relaunch_args, shell=False, check=False)
+                raise SystemExit(completed.returncode)
+
+            os.execv(candidate_abs, relaunch_args)
+
+    raise ModuleNotFoundError(
+        "No module named 'flwr'. Install with: \n"
+        f"  \"{sys.executable}\" -m pip install flwr\n"
+        "or run with:\n"
+        "  C:/Users/Arjaa Chatterjee/.conda/envs/myenv/python.exe federated_server.py"
+    )
 from typing import List, Tuple
 from flwr.common import Metrics
 

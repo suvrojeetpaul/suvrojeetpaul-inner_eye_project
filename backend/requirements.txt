@@ -1,0 +1,28 @@
+# Core API
+fastapi>=0.135,<1
+uvicorn>=0.41,<1
+python-multipart>=0.0.22
+
+# Numerical / imaging stack
+numpy>=2.4,<3
+scipy>=1.17,<2
+scikit-image>=0.25,<1
+pillow>=12,<13
+pydicom>=3,<4
+nibabel>=5.4,<6
+
+# AI / federated learning stack
+# Keep torch and monai unpinned for platform-specific wheel compatibility.
+torch>=2.10,<3
+monai>=1.5,<2
+flwr>=1.8,<2
+
+# Validation
+pydantic>=2,<3
+
+# Encryption
+cryptography>=42,<46
+
+# Auth and password hashing
+PyJWT>=2.9,<3
+passlib[bcrypt]>=1.7,<2
