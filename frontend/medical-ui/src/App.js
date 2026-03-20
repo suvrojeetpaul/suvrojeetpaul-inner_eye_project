@@ -25,6 +25,23 @@ const resolveDefaultApiBaseUrl = () => {
 const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || resolveDefaultApiBaseUrl()).replace(/\/$/, '');
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
 
+const getAlternateLoopbackUrl = (targetUrl) => {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.hostname === '127.0.0.1') {
+      parsed.hostname = 'localhost';
+      return parsed.toString();
+    }
+    if (parsed.hostname === 'localhost') {
+      parsed.hostname = '127.0.0.1';
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 const I18N_TEXT = {
   en: {
     disclaimer: 'This is not a substitute for medical advice.',
@@ -175,28 +192,32 @@ function App() {
       throw new Error('Too many requests. Please wait a moment and try again.');
     }
 
+    const alternateUrl = getAlternateLoopbackUrl(url);
+    const urlCandidates = alternateUrl ? [url, alternateUrl] : [url];
+
     let lastError = null;
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
-      try {
-        const mergedOptions = {
-          ...options,
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            ...(options.headers || {}),
-          },
-        };
-        const response = await fetch(url, mergedOptions);
-        if (!response.ok && response.status >= 500 && attempt < retryCount) {
-          await wait(250 * (attempt + 1));
-          continue;
+      for (const candidateUrl of urlCandidates) {
+        try {
+          const mergedOptions = {
+            ...options,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              ...(options.headers || {}),
+            },
+          };
+          const response = await fetch(candidateUrl, mergedOptions);
+          if (!response.ok && response.status >= 500 && attempt < retryCount) {
+            await wait(250 * (attempt + 1));
+            continue;
+          }
+          return response;
+        } catch (error) {
+          lastError = error;
         }
-        return response;
-      } catch (error) {
-        lastError = error;
-        if (attempt < retryCount) {
-          await wait(250 * (attempt + 1));
-          continue;
-        }
+      }
+      if (attempt < retryCount) {
+        await wait(250 * (attempt + 1));
       }
     }
     throw lastError || new Error('Request failed');
@@ -435,7 +456,7 @@ function App() {
 
     const checkBackend = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/health`);
+        const response = await requestWithRetry(`${API_BASE_URL}/health`, {}, 1);
         if (!mounted) return;
         setBackendOnline(response.ok);
       } catch (error) {
@@ -456,7 +477,7 @@ function App() {
   useEffect(() => {
     const intervalId = setInterval(() => setClockTick(Date.now()), 60000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [requestWithRetry]);
 
   useEffect(() => {
     if (!preview || !String(preview).startsWith('blob:')) {

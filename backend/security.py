@@ -32,7 +32,8 @@ class SecurityConfig:
         "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
     ).split(",")
     ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"]
+    # Allow all headers so browser preflight does not fail on varying header casing/order.
+    ALLOWED_HEADERS = ["*"]
     
     # Rate Limiting
     RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"

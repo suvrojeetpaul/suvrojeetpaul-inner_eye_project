@@ -7,6 +7,7 @@ import random
 import datetime
 import secrets
 import hashlib
+import asyncio
 import jwt
 import torch
 import numpy as np
@@ -23,6 +24,9 @@ from math import radians, sin, cos, atan2, sqrt, exp
 import logging
 from cryptography.fernet import Fernet
 from passlib.context import CryptContext
+
+if os.name == "nt":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Import security module
 from security import (
