@@ -221,7 +221,7 @@ function App() {
       }
     }
     throw lastError || new Error('Request failed');
-  }, [requestWithRetry]);
+  }, []);
 
   // --- [4] CLINICAL DATABASE SYNC ---
   const fetchHistory = useCallback(async () => {
