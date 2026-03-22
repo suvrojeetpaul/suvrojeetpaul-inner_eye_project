@@ -221,7 +221,7 @@ function App() {
       }
     }
     throw lastError || new Error('Request failed');
-  }, []);
+  }, [requestWithRetry]);
 
   // --- [4] CLINICAL DATABASE SYNC ---
   const fetchHistory = useCallback(async () => {
@@ -477,7 +477,7 @@ function App() {
   useEffect(() => {
     const intervalId = setInterval(() => setClockTick(Date.now()), 60000);
     return () => clearInterval(intervalId);
-  }, [requestWithRetry]);
+  }, []);
 
   useEffect(() => {
     if (!preview || !String(preview).startsWith('blob:')) {
