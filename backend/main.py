@@ -28,15 +28,27 @@ from passlib.context import CryptContext
 if os.name == "nt":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Import security module
-from security import (
-    SecurityConfig,
-    RateLimitMiddleware,
-    SecurityHeadersMiddleware,
-    InputValidator,
-    SecurityLogger,
-    security_logger
-)
+# Import security module in a way that works for both:
+# - `uvicorn backend.main:app` (package import from repo root)
+# - `uvicorn main:app` from inside `backend/`
+try:
+    from .security import (
+        SecurityConfig,
+        RateLimitMiddleware,
+        SecurityHeadersMiddleware,
+        InputValidator,
+        SecurityLogger,
+        security_logger,
+    )
+except ImportError:
+    from security import (
+        SecurityConfig,
+        RateLimitMiddleware,
+        SecurityHeadersMiddleware,
+        InputValidator,
+        SecurityLogger,
+        security_logger,
+    )
 
 # MONAI / PyTorch Imports for 3D Segmentation
 from monai.networks.nets import UNet
@@ -148,7 +160,9 @@ ACCOUNT_LOCKOUT_MINUTES = max(1, int(os.getenv("ACCOUNT_LOCKOUT_MINUTES", str(Se
 ACCESS_TOKEN_EXP_MINUTES = max(5, int(os.getenv("ACCESS_TOKEN_EXP_MINUTES", str(SecurityConfig.SESSION_TIMEOUT_MINUTES))))
 SYSTEM_ADMIN_INVITE_CODE = os.getenv("SYSTEM_ADMIN_INVITE_CODE", "")
 HOSPITAL_ADMIN_INVITE_CODE = os.getenv("HOSPITAL_ADMIN_INVITE_CODE", "")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Prefer pbkdf2_sha256 for hashing new passwords.
+# Keep bcrypt in the context so previously stored bcrypt hashes (if any) still verify.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 
 def get_fernet_key() -> bytes:
