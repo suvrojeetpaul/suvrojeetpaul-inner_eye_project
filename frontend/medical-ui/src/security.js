@@ -55,6 +55,24 @@ class FrontendSecurity {
     return { valid: true };
   }
 
+  static validatePrescriptionFile(file, maxSizeMB = 20) {
+    if (!file) return { valid: false, error: 'No file selected' };
+
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      return { valid: false, error: `File exceeds ${maxSizeMB}MB limit` };
+    }
+
+    const allowedExtensions = ['.img', '.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx', '.docs'];
+    const fileName = file.name.toLowerCase();
+    const isAllowed = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isAllowed) {
+      return { valid: false, error: 'Invalid prescription file type. Allowed: IMG, JPG, PNG, DOC, DOCX, PDF' };
+    }
+
+    return { valid: true };
+  }
+
   /**
    * XSS Prevention - Escape HTML
    */

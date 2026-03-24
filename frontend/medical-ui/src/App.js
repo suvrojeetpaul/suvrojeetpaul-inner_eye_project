@@ -95,6 +95,7 @@ function App() {
   const [bookingMessage, setBookingMessage] = useState("");
   const [searchWorldwide, setSearchWorldwide] = useState(false);
   const [prescriptionUpdate, setPrescriptionUpdate] = useState("");
+  const [prescriptionFile, setPrescriptionFile] = useState(null);
   const [bookingSymptoms, setBookingSymptoms] = useState("");
   const [bookingSeverity, setBookingSeverity] = useState("MODERATE");
   const [triageRecommendation, setTriageRecommendation] = useState(null);
@@ -702,6 +703,7 @@ function App() {
     setBookingInfo(null);
     setBookingMessage('');
     setSearchWorldwide(false);
+    setPrescriptionFile(null);
     setConsentChecked(false);
     setBookingSymptoms('');
     setBookingSeverity('MODERATE');
@@ -760,6 +762,7 @@ function App() {
     setBookingInfo(null);
     setBookingMessage('');
     setPrescriptionUpdate('');
+    setPrescriptionFile(null);
     setConsentChecked(false);
     setContactEmail('');
     setContactPhone('');
@@ -1076,8 +1079,8 @@ function App() {
     }
 
     const note = prescriptionUpdate.trim();
-    if (!note) {
-      setBookingMessage('Please add the latest prescription details before booking a bed.');
+    if (!note && !prescriptionFile) {
+      setBookingMessage('Please add prescription details or upload a prescription file before booking a bed.');
       return;
     }
 
@@ -1092,6 +1095,8 @@ function App() {
       bed_number: (result?.bed_number || bedNumber || '').trim(),
       residence: (result?.residence || residence || '').trim(),
       hospital: hospitalName,
+      prescription_update: note || undefined,
+      prescription_file_name: prescriptionFile?.name || undefined,
       email: contactEmail.trim() || undefined,
       phone: contactPhone.trim() || undefined,
       consent: consentChecked,
@@ -1411,6 +1416,33 @@ function App() {
                   value={prescriptionUpdate}
                   onChange={e => setPrescriptionUpdate(e.target.value)}
                 />
+              </div>
+              <div className="meta-field prescription-field">
+                <label>Prescription File Upload (IMG/JPG/DOC/PDF)</label>
+                <input
+                  type="file"
+                  id="prescription-upload"
+                  hidden
+                  accept=".img,.jpg,.jpeg,.png,.doc,.docx,.docs,.pdf"
+                  onChange={e => {
+                    if (e.target.files?.[0]) {
+                      const selectedPrescription = e.target.files[0];
+                      const validation = FrontendSecurity.validatePrescriptionFile(selectedPrescription);
+                      if (!validation.valid) {
+                        alert(`This prescription file cannot be uploaded: ${validation.error}`);
+                        addLog(`[SECURITY] PRESCRIPTION_FILE_REJECTED: ${validation.error}`);
+                        return;
+                      }
+                      setPrescriptionFile(selectedPrescription);
+                      addLog(`PRESCRIPTION_FILE_ATTACHED: ${selectedPrescription.name.toUpperCase()}`);
+                      FrontendSecurity.logEvent('FILE_UPLOAD', { action: 'prescription_file_selected', status: 'valid' });
+                    }
+                  }}
+                />
+                <label htmlFor="prescription-upload" className="mystic-gold-button">Upload Prescription</label>
+                <div className="live-update-caption">
+                  {prescriptionFile ? `Selected: ${prescriptionFile.name}` : 'No prescription file selected'}
+                </div>
               </div>
               <div className="meta-field">
                 <label>Email for confirmation</label>
@@ -1741,6 +1773,7 @@ function App() {
             </div>
             <div className="report-analysis-block">
               <div className="report-line">{prescriptionUpdate || 'Prescription update will appear here once entered.'}</div>
+              <div className="report-line"><strong>Prescription file:</strong> {prescriptionFile?.name || 'Not uploaded'}</div>
             </div>
             {bookingInfo ? (
               <div className="booking-confirm-card">
