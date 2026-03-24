@@ -43,15 +43,6 @@ class FrontendSecurity {
       return { valid: false, error: `File exceeds ${maxSizeMB}MB limit` };
     }
 
-    // Check file type
-    const allowedExtensions = ['.dcm', '.nii', '.nii.gz', '.jpg', '.png'];
-    const fileName = file.name.toLowerCase();
-    const isAllowed = allowedExtensions.some(ext => fileName.endsWith(ext));
-    
-    if (!isAllowed) {
-      return { valid: false, error: 'Invalid file type. Allowed: DICOM, NIfTI, JPG, PNG' };
-    }
-
     return { valid: true };
   }
 

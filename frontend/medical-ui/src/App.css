@@ -623,7 +623,7 @@ body {
 /* --- MAIN LAYOUT (STRICT CONSTRAINTS) --- */
 .sanctum-main-layout {
   display: flex; flex: 1; gap: 14px; overflow: hidden;
-  height: calc(100vh - 118px);
+  min-height: 0;
 }
 
 .sanctum-panel-box {
@@ -644,16 +644,26 @@ body {
 
 .booking-mode-layout {
   align-items: stretch;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .booking-main-panel {
   flex: 1;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .booking-side-panel {
   flex: 0 0 336px;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .booking-hero-card {

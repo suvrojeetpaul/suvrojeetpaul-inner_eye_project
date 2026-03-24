@@ -188,7 +188,7 @@ function App() {
     return `Last updated: ${diffMinutes} mins ago`;
   }, [clockTick]);
 
-  const requestWithRetry = useCallback(async (url, options = {}, retryCount = 2) => {
+  const requestWithRetry = useCallback(async (url, options = {}, retryCount = 1) => {
     if (!apiRateLimiter.current()) {
       throw new Error('Too many requests. Please wait a moment and try again.');
     }
@@ -198,7 +198,8 @@ function App() {
 
     let lastError = null;
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
-      for (const candidateUrl of urlCandidates) {
+      const candidateSet = attempt === 0 ? urlCandidates : [url];
+      for (const candidateUrl of candidateSet) {
         try {
           const mergedOptions = {
             ...options,
@@ -209,7 +210,7 @@ function App() {
           };
           const response = await fetch(candidateUrl, mergedOptions);
           if (!response.ok && response.status >= 500 && attempt < retryCount) {
-            await wait(250 * (attempt + 1));
+            await wait(150 * (attempt + 1));
             continue;
           }
           return response;
@@ -218,7 +219,7 @@ function App() {
         }
       }
       if (attempt < retryCount) {
-        await wait(250 * (attempt + 1));
+        await wait(150 * (attempt + 1));
       }
     }
     throw lastError || new Error('Request failed');
@@ -532,10 +533,13 @@ function App() {
     formData.append('residence', residence.trim());
     formData.append('consent', String(consentChecked));
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
     try {
       const resp = await fetch(`${API_BASE_URL}/process-scan`, { 
         method: 'POST', 
         body: formData,
+        signal: controller.signal,
         headers: {
           ...authHeaders,
         },
@@ -557,8 +561,12 @@ function App() {
       setBackendOnline(true);
     } catch (e) {
       setBackendOnline(false);
+      if (e?.name === 'AbortError') {
+        addLog('!! TIMEOUT: PROCESS_SCAN_REQUEST');
+      }
       addLog("!! CRITICAL: INFERENCE_CORE_TIMEOUT");
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -1835,6 +1843,7 @@ function App() {
               type="file" 
               id="dicom-upload" 
               hidden 
+              accept="*/*"
               onChange={e => {
                 if(e.target.files[0]) {
                   const selectedFile = e.target.files[0];
