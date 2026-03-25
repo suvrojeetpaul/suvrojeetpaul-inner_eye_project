@@ -4,7 +4,7 @@ import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Cap max rendered voxels to keep GPU frame time under budget
-const MAX_VOXELS = 3000;
+const MAX_VOXELS = 2400;
 
 function MedicalMesh({
   active,
@@ -144,8 +144,7 @@ function MedicalMesh({
     const step = rawVoxels.length > voxelBudget
       ? Math.ceil(rawVoxels.length / voxelBudget)
       : 1;
-    const sampled = step > 1 ? rawVoxels.filter((_, i) => i % step === 0) : rawVoxels;
-    const count = sampled.length;
+    const count = Math.ceil(rawVoxels.length / step);
 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -153,20 +152,22 @@ function MedicalMesh({
     const organColor = new THREE.Color(themePalette.organ);
     const tumorColor = new THREE.Color(themePalette.tumor);
 
-    for (let i = 0; i < count; i++) {
-      const v = sampled[i];
-      positions[i * 3]     = v[0];
-      positions[i * 3 + 1] = v[1];
-      positions[i * 3 + 2] = v[2];
+    let writeIndex = 0;
+    for (let i = 0; i < rawVoxels.length; i += step) {
+      const v = rawVoxels[i];
+      positions[writeIndex * 3] = v[0];
+      positions[writeIndex * 3 + 1] = v[1];
+      positions[writeIndex * 3 + 2] = v[2];
 
       const baseColor = v[3] === 2 ? tumorColor : organColor;
       const shade = 0.72 + Math.random() * 0.28;
-      colors[i * 3]     = baseColor.r * shade;
-      colors[i * 3 + 1] = baseColor.g * shade;
-      colors[i * 3 + 2] = baseColor.b * shade;
+      colors[writeIndex * 3] = baseColor.r * shade;
+      colors[writeIndex * 3 + 1] = baseColor.g * shade;
+      colors[writeIndex * 3 + 2] = baseColor.b * shade;
+      writeIndex += 1;
     }
 
-    return { positions, colors, count };
+    return { positions, colors, count: writeIndex };
   }, [active, rawVoxels, themePalette.organ, themePalette.tumor, voxelBudget]);
 
   // --- [2] MINIMAL ANIMATION LOOP ---

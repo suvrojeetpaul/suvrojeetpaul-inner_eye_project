@@ -1,11 +1,14 @@
 {
   "scripts": {
-    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start": "npm run start:stable",
+    "start:stable": "concurrently -k -n backend,frontend \"npm run start:backend\" \"npm run start:frontend:wait\"",
     "start:backend": "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
-    "start:frontend": "npm --prefix frontend/medical-ui start"
+    "start:frontend": "npm --prefix frontend/medical-ui start",
+    "start:frontend:wait": "wait-on http://127.0.0.1:8000/health && npm run start:frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.3"
   },
   "dependencies": {
     "lucide-react": "^0.575.0",
