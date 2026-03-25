@@ -90,6 +90,8 @@ function App() {
   const [activeTab, setActiveTab] = useState("QUANTITATIVE");
   const [viewMode, setViewMode] = useState("VOXEL");
   const [is3DExpanded, setIs3DExpanded] = useState(false);
+  const [autoSpin3D, setAutoSpin3D] = useState(true);
+  const [cinematicTour3D, setCinematicTour3D] = useState(false);
   const [nearestBeds, setNearestBeds] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingMessage, setBookingMessage] = useState("");
@@ -138,6 +140,9 @@ function App() {
   const [backendOnline, setBackendOnline] = useState(true);
   const debounceTimerRef = useRef(null);
   const bookingInFlightRef = useRef(new Set());
+  const lastAutoBedRefreshRef = useRef(0);
+  const viewerCommandCounterRef = useRef(0);
+  const rendererCanvasRef = useRef(null);
   const logsRef = useRef([
     '[' + new Date().toLocaleTimeString() + '] > System ready.'
   ]);
@@ -187,6 +192,35 @@ function App() {
     if (diffMinutes === 1) return 'Last updated: 1 min ago';
     return `Last updated: ${diffMinutes} mins ago`;
   }, [clockTick]);
+
+  const [viewerCommand, setViewerCommand] = useState(null);
+
+  const issueViewerCommand = useCallback((type) => {
+    viewerCommandCounterRef.current += 1;
+    setViewerCommand({ id: viewerCommandCounterRef.current, type });
+  }, []);
+
+  const mapAuthErrorToMessage = useCallback((message) => {
+    const errorMap = {
+      USERNAME_MUST_BE_3_TO_32_CHARS_ALPHANUMERIC: 'Username must be 3-32 chars (letters, numbers, underscore, hyphen, dot).',
+      PASSWORD_TOO_SHORT: 'Password must be at least 8 characters.',
+      PASSWORD_MUST_INCLUDE_UPPERCASE: 'Password must include at least one uppercase letter.',
+      PASSWORD_MUST_INCLUDE_LOWERCASE: 'Password must include at least one lowercase letter.',
+      PASSWORD_MUST_INCLUDE_DIGIT: 'Password must include at least one number.',
+      INVALID_CREDENTIALS: 'Invalid username or password.',
+      USERNAME_ALREADY_EXISTS: 'That username already exists. Try another username.',
+      HOSPITAL_ADMIN_INVITE_REQUIRED: 'Hospital admin signup requires a valid invite code.',
+      SYSTEM_ADMIN_INVITE_REQUIRED: 'System admin signup requires a valid invite code.',
+      ACCOUNT_LOCKED: 'Account is temporarily locked due to repeated failed logins. Please try again later.',
+    };
+
+    const normalized = String(message || '').trim();
+    if (!normalized) return 'Authentication failed. Please try again.';
+    if (normalized.startsWith('ACCOUNT_LOCKED_TRY_IN_')) {
+      return 'Account temporarily locked after repeated login attempts. Please wait and try again.';
+    }
+    return errorMap[normalized] || normalized;
+  }, []);
 
   const requestWithRetry = useCallback(async (url, options = {}, retryCount = 1) => {
     if (!apiRateLimiter.current()) {
@@ -349,6 +383,16 @@ function App() {
       setAuthMessage('Username must be 3-32 chars: lowercase letters, numbers, underscore (_), hyphen (-), or dot (.).');
       return;
     }
+    if (authFormMode === 'signup') {
+      if (authFormPassword.length < 8) {
+        setAuthMessage('Password must be at least 8 characters.');
+        return;
+      }
+      if (!/[A-Z]/.test(authFormPassword) || !/[a-z]/.test(authFormPassword) || !/\d/.test(authFormPassword)) {
+        setAuthMessage('Password must include at least one uppercase letter, one lowercase letter, and one number.');
+        return;
+      }
+    }
 
     setAuthLoading(true);
     setAuthMessage('');
@@ -366,7 +410,7 @@ function App() {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || 'Authentication failed');
+        throw new Error(mapAuthErrorToMessage(data.detail || 'Authentication failed'));
       }
       setAuthToken(data.token);
       setAuthUsername(data.username);
@@ -388,14 +432,14 @@ function App() {
       if (isNetworkFailure) {
         setAuthMessage(`Authentication failed: Cannot reach API at ${API_BASE_URL}. Start backend on port 8000 and retry.`);
       } else {
-        setAuthMessage(`Authentication failed: ${error.message}`);
+        setAuthMessage(`Authentication failed: ${mapAuthErrorToMessage(error.message)}`);
       }
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setAuthToken('');
     setAuthUsername('');
     setAuthRole('patient');
@@ -408,7 +452,7 @@ function App() {
     FrontendSecurity.clearLocalStorage('dishaAuthCsrfToken');
     FrontendSecurity.clearLocalStorage('dishaAuthExpiresAt');
     setAuthMessage('Logged out.');
-  };
+  }, []);
 
   useEffect(() => {
     if (!authToken || !authExpiresAt) return undefined;
@@ -425,7 +469,7 @@ function App() {
       setAuthMessage('Session expired. Please log in again.');
     }, remainingMs);
     return () => clearTimeout(timeoutId);
-  }, [authExpiresAt, authToken]);
+  }, [authExpiresAt, authToken, handleLogout]);
 
   useEffect(() => {
     if (!authToken) return undefined;
@@ -451,7 +495,38 @@ function App() {
       if (timeoutId) clearTimeout(timeoutId);
       events.forEach((eventName) => document.removeEventListener(eventName, resetInactivityTimer, true));
     };
-  }, [authToken]);
+  }, [authToken, handleLogout]);
+
+  useEffect(() => {
+    if (!authToken) return undefined;
+
+    let cancelled = false;
+    const verifySession = async () => {
+      try {
+        const response = await requestWithRetry(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            ...authHeaders,
+          },
+        });
+        if (cancelled) return;
+        if (!response.ok) {
+          handleLogout();
+          setAuthMessage('Session invalid or expired. Please log in again.');
+        }
+      } catch {
+        if (!cancelled) {
+          // Do not force logout on transient network issues.
+          setAuthMessage('Unable to verify session right now. Some actions may fail until connection is restored.');
+        }
+      }
+    };
+
+    verifySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders, authToken, handleLogout, requestWithRetry]);
 
   useEffect(() => {
     let mounted = true;
@@ -474,7 +549,7 @@ function App() {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [requestWithRetry]);
 
   useEffect(() => {
     const intervalId = setInterval(() => setClockTick(Date.now()), 60000);
@@ -551,6 +626,8 @@ function App() {
       setResult(data);
       setActiveTab("QUANTITATIVE");
       setIs3DExpanded(false);
+      setAutoSpin3D(true);
+      setCinematicTour3D(false);
       setNearestBeds([]);
       setBookingMessage("");
       setBookingInfo(null);
@@ -767,6 +844,8 @@ function App() {
     setLoading(false);
     setActiveTab('QUANTITATIVE');
     setNearestBeds([]);
+    setAutoSpin3D(true);
+    setCinematicTour3D(false);
     setBookingInfo(null);
     setBookingMessage('');
     setPrescriptionUpdate('');
@@ -793,7 +872,110 @@ function App() {
     setCity('');
     setLocality('');
     setResidence('');
+    setCinematicTour3D(false);
   };
+
+  const severityTheme = useMemo(() => {
+    const severity = (result?.severity || '').toLowerCase();
+    if (severity === 'critical') return 'critical';
+    if (severity === 'moderate') return 'moderate';
+    return 'normal';
+  }, [result?.severity]);
+
+  const download3DScreenshot = useCallback(() => {
+    if (!rendererCanvasRef.current || !result) {
+      setBookingMessage('3D screenshot unavailable until a model is rendered.');
+      return;
+    }
+    try {
+      const imageData = rendererCanvasRef.current.toDataURL('image/png');
+      const link = document.createElement('a');
+      const safeStudyId = String(result.subject_id || 'scan').replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.href = imageData;
+      link.download = `DISHA_3D_${safeStudyId}.png`;
+      link.click();
+    } catch {
+      setBookingMessage('Unable to export screenshot in this browser session.');
+    }
+  }, [result]);
+
+  const toggleCinematicTour = useCallback(() => {
+    setCinematicTour3D((prev) => {
+      const next = !prev;
+      if (next) {
+        setAutoSpin3D(false);
+        issueViewerCommand('preset-iso');
+      }
+      return next;
+    });
+  }, [issueViewerCommand]);
+
+  useEffect(() => {
+    if (!result) return undefined;
+
+    const onKeyDown = (event) => {
+      const targetTag = String(event.target?.tagName || '').toLowerCase();
+      const isTypingTarget =
+        targetTag === 'input' ||
+        targetTag === 'textarea' ||
+        targetTag === 'select' ||
+        event.target?.isContentEditable;
+      if (isTypingTarget) return;
+
+      const key = String(event.key || '').toLowerCase();
+      if (!key) return;
+
+      if (key === 'r') {
+        event.preventDefault();
+        issueViewerCommand('reset-view');
+        return;
+      }
+      if (key === 'c') {
+        event.preventDefault();
+        toggleCinematicTour();
+        return;
+      }
+      if (key === 's') {
+        event.preventDefault();
+        download3DScreenshot();
+        return;
+      }
+      if (key === '1') {
+        event.preventDefault();
+        issueViewerCommand('preset-front');
+        return;
+      }
+      if (key === '2') {
+        event.preventDefault();
+        issueViewerCommand('preset-side');
+        return;
+      }
+      if (key === '3') {
+        event.preventDefault();
+        issueViewerCommand('preset-top');
+        return;
+      }
+      if (key === '4') {
+        event.preventDefault();
+        issueViewerCommand('preset-iso');
+        return;
+      }
+      if (key === '+' || key === '=') {
+        event.preventDefault();
+        issueViewerCommand('zoom-in');
+        return;
+      }
+      if (key === '-' || key === '_') {
+        event.preventDefault();
+        issueViewerCommand('zoom-out');
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [download3DScreenshot, issueViewerCommand, result, toggleCinematicTour]);
 
   const departmentLabel = {
     neuro_axial: 'Brain Tumor',
@@ -1053,7 +1235,11 @@ function App() {
           setLastBedUpdateAt(payload.timestamp);
         }
         if (carePath === 'booking' && isCompleteLocation) {
-          fetchNearestBeds();
+          const now = Date.now();
+          if (now - lastAutoBedRefreshRef.current > 5000) {
+            lastAutoBedRefreshRef.current = now;
+            fetchNearestBeds();
+          }
         }
       } catch (error) {
         addLog('!! LIVE_UPDATE_PARSE_FAILED');
@@ -1182,14 +1368,14 @@ function App() {
           ) : (
             <>
               <div className="auth-mode-toggle">
-                <button className={authFormMode === 'login' ? 'active' : ''} onClick={() => setAuthFormMode('login')}>Login</button>
-                <button className={authFormMode === 'signup' ? 'active' : ''} onClick={() => setAuthFormMode('signup')}>Signup</button>
+                <button className={authFormMode === 'login' ? 'active' : ''} onClick={() => { setAuthFormMode('login'); setAuthMessage(''); }}>Login</button>
+                <button className={authFormMode === 'signup' ? 'active' : ''} onClick={() => { setAuthFormMode('signup'); setAuthMessage(''); }}>Signup</button>
               </div>
               <input
                 className="magic-input-field"
                 placeholder="Username (a-z, 0-9, _, -, .)"
                 value={authFormUsername}
-                onChange={(e) => setAuthFormUsername(e.target.value)}
+                onChange={(e) => setAuthFormUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
               />
               <div className="auth-helper-text">Use 3-32 lowercase characters: a-z, 0-9, underscore (_), hyphen (-), dot (.).</div>
               <input
@@ -1912,17 +2098,17 @@ function App() {
             )}
           </div>
           
-          <div
-            className={`three-dimension-viewport-container ${is3DExpanded ? 'expanded' : ''}`}
-            onClick={() => setIs3DExpanded(prev => !prev)}
-          >
+          <div className={`three-dimension-viewport-container ${is3DExpanded ? 'expanded' : ''}`}>
             {/* dpr cap: retina screens would render 2-3× pixel budget without this */}
             {/* antialias: false reduces GPU load significantly on point clouds      */}
             {result && (
               <Canvas
                 dpr={performanceProfile === 'eco' ? [1, 1] : [1, 1.25]}
-                gl={{ antialias: false, powerPreference: 'high-performance' }}
+                gl={{ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: true }}
                 camera={{ position: [0, 0, 6], fov: 40 }}
+                onCreated={({ gl }) => {
+                  rendererCanvasRef.current = gl.domElement;
+                }}
               >
                 <MedicalMesh
                   active={!!result}
@@ -1930,6 +2116,10 @@ function App() {
                   viewMode={viewMode}
                   focusMode={is3DExpanded}
                   performanceProfile={performanceProfile}
+                  cameraCommand={viewerCommand}
+                  autoSpin={autoSpin3D}
+                  cinematicTour={cinematicTour3D}
+                  severityTheme={severityTheme}
                 />
               </Canvas>
             )}
@@ -1955,11 +2145,57 @@ function App() {
               </button>
             )}
 
+            {result && !is3DExpanded && (
+              <button
+                className="expand-3d-btn"
+                onClick={() => setIs3DExpanded(true)}
+              >
+                Expand View
+              </button>
+            )}
+
+            {result && (
+              <div className="viewport-control-dock" role="group" aria-label="3D viewport controls">
+                <button className="dock-btn" onClick={() => issueViewerCommand('zoom-in')}>Zoom +</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('zoom-out')}>Zoom -</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('rotate-left')}>Rotate Left</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('rotate-right')}>Rotate Right</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('rotate-up')}>Rotate Up</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('rotate-down')}>Rotate Down</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('preset-front')}>Front</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('preset-side')}>Side</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('preset-top')}>Top</button>
+                <button className="dock-btn" onClick={() => issueViewerCommand('preset-iso')}>Isometric</button>
+                <button
+                  className={`dock-btn ${autoSpin3D ? 'spin-on' : ''}`}
+                  onClick={() => {
+                    setAutoSpin3D((prev) => !prev);
+                    setCinematicTour3D(false);
+                  }}
+                >
+                  {autoSpin3D ? 'Auto Spin: ON' : 'Auto Spin: OFF'}
+                </button>
+                <button
+                  className={`dock-btn cinematic ${cinematicTour3D ? 'spin-on' : ''}`}
+                  onClick={toggleCinematicTour}
+                >
+                  {cinematicTour3D ? 'Cinematic: ON' : 'Cinematic Tour'}
+                </button>
+                <button className="dock-btn screenshot" onClick={download3DScreenshot}>Save PNG</button>
+                <button className="dock-btn reset" onClick={() => issueViewerCommand('reset-view')}>Reset</button>
+              </div>
+            )}
+
             {result && is3DExpanded && (
               <div className="viewport-hud-overlay">
                 <div className="hud-line">Model: <span className="blue">MONAI v5</span></div>
                 <div className="hud-line">Points: <span className="blue">{result?.voxels?.length ? result.voxels.length.toLocaleString() : '—'}</span></div>
                 <div className="hud-line">Rendered: <span className="blue">{result?.voxels?.length ? Math.min(result.voxels.length, 3000).toLocaleString() : '—'}</span></div>
+                <div className="hud-line">Spin: <span className="blue">{autoSpin3D ? 'ON' : 'OFF'}</span></div>
+                <div className="hud-line">Theme: <span className="blue">{severityTheme.toUpperCase()}</span></div>
+                <div className="hud-line">Tour: <span className="blue">{cinematicTour3D ? 'CINEMATIC ON' : 'OFF'}</span></div>
+                <div className="hud-line">Mouse/Touch: drag to orbit, wheel/pinch to zoom, right-drag to pan</div>
+                <div className="hud-line">Shortcuts: R reset, C cinematic, S screenshot, 1/2/3/4 presets, +/- zoom</div>
               </div>
             )}
           </div>

@@ -142,7 +142,12 @@ class FrontendSecurity {
     try {
       const data = localStorage.getItem(key);
       if (!data) return null;
-      return JSON.parse(data);
+      try {
+        return JSON.parse(data);
+      } catch {
+        // Backward compatibility: older values may be stored as raw strings.
+        return data;
+      }
     } catch (e) {
       console.error('LocalStorage error:', e);
       return null;

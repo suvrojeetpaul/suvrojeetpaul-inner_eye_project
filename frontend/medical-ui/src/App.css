@@ -922,7 +922,7 @@ body {
   position: relative;
   border: 1px solid rgba(78, 168, 255, 0.2);
   border-radius: var(--radius-md);
-  cursor: zoom-in;
+  cursor: default;
   overflow: hidden;
   /* GPU compositing hint — prevents browser repaints from affecting the canvas */
   will-change: transform;
@@ -970,7 +970,30 @@ body {
   z-index: 50;
   border: 1px solid rgba(106, 192, 255, 0.5);
   box-shadow: 0 0 0 1px rgba(106,192,255,0.15), 0 24px 60px rgba(0,0,0,0.7);
-  cursor: zoom-out;
+  cursor: default;
+}
+
+.expand-3d-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  border: 1px solid rgba(78, 168, 255, 0.5);
+  background: rgba(8, 12, 20, 0.9);
+  color: #bfe4ff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.expand-3d-btn:hover {
+  border-color: rgba(106, 192, 255, 0.85);
+  box-shadow: 0 0 12px rgba(78,168,255,0.26);
+  transform: translateY(-1px);
 }
 
 .collapse-3d-btn {
@@ -1016,6 +1039,71 @@ body {
 }
 
 .hud-line .blue { color: var(--neon-blue); }
+
+.viewport-control-dock {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, max-content));
+  gap: 6px;
+  max-width: min(94%, 860px);
+}
+
+.dock-btn {
+  border: 1px solid rgba(78, 168, 255, 0.42);
+  background: rgba(5, 12, 24, 0.88);
+  color: rgba(204, 233, 255, 0.95);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  padding: 6px 9px;
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dock-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(106, 192, 255, 0.85);
+  box-shadow: 0 0 10px rgba(78, 168, 255, 0.2);
+}
+
+.dock-btn.reset {
+  border-color: rgba(255, 193, 66, 0.55);
+  color: #ffe1a6;
+}
+
+.dock-btn.spin-on {
+  border-color: rgba(110, 232, 170, 0.7);
+  color: #c6ffe3;
+  box-shadow: 0 0 10px rgba(110, 232, 170, 0.18);
+}
+
+.dock-btn.cinematic {
+  border-color: rgba(255, 163, 102, 0.62);
+  color: #ffd8b6;
+}
+
+.dock-btn.screenshot {
+  border-color: rgba(173, 201, 255, 0.62);
+  color: #d5e4ff;
+}
+
+@media (max-width: 900px) {
+  .viewport-control-dock {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    left: 8px;
+    top: 8px;
+    max-width: calc(100% - 16px);
+  }
+
+  .dock-btn {
+    font-size: 0.58rem;
+    padding: 6px 7px;
+  }
+}
 
 /* --- TABS & ANALYTICS --- */
 .tab-navigation { 
