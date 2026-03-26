@@ -172,6 +172,7 @@ function App() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [scanMessage, setScanMessage] = useState('');
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState("QUANTITATIVE");
   const [viewMode, setViewMode] = useState("VOXEL");
@@ -748,10 +749,12 @@ function App() {
 
   const executeInference = async () => {
     if (!consentChecked) {
+      setScanMessage('Please provide consent before running medical analysis.');
       alert('Please provide consent before running medical analysis.');
       return;
     }
     if (!file) {
+      setScanMessage('Please upload a supported scan file (.dcm, .nii, .nii.gz, .jpg, .jpeg, .png).');
       addLog("!! ABORT: MISSING_SUBJECT_METADATA");
       alert('Please upload a scan before running analysis.');
       return;
@@ -784,6 +787,7 @@ function App() {
     }
 
     scanInFlightRef.current = true;
+    setScanMessage('');
     setLoading(true);
     setResult(null);
     setIs3DExpanded(false);
@@ -830,6 +834,7 @@ function App() {
       
       const data = await resp.json();
       setResult(data);
+      setScanMessage('Scan analysis completed successfully.');
       setActiveTab("QUANTITATIVE");
       setIs3DExpanded(false);
       setAutoSpin3D(true);
@@ -859,14 +864,17 @@ function App() {
         setActiveTab('QUANTITATIVE');
 
         if (e?.name === 'AbortError') {
+          setScanMessage('Server response timed out, so local fallback analysis was generated.');
           setBookingMessage('Server response took too long, so local fallback was used for continuity.');
           addLog('TIMEOUT_DETECTED -> LOCAL_FALLBACK_ACTIVATED');
         } else {
+          setScanMessage('Network unavailable. Local fallback analysis was generated.');
           setBookingMessage('Network unavailable. Local fallback was used for continuity.');
           addLog('BACKEND_UNREACHABLE -> LOCAL_FALLBACK_ACTIVATED');
         }
       } else {
         setResult(null);
+        setScanMessage(`Scan failed: ${e?.message || 'request failed'}`);
         setBookingMessage(`Server returned an error: ${e?.message || 'request failed'}. Please retry.`);
         addLog(`SERVER_ERROR_NO_FALLBACK: ${String(e?.message || 'UNKNOWN_ERROR').toUpperCase()}`);
       }
@@ -2319,7 +2327,7 @@ function App() {
               type="file" 
               id="dicom-upload" 
               hidden 
-              accept="*/*"
+              accept=".dcm,.nii,.nii.gz,.jpg,.jpeg,.png"
               onChange={e => {
                 if(e.target.files[0]) {
                   const selectedFile = e.target.files[0];
@@ -2337,12 +2345,16 @@ function App() {
                   setAutoSpin3D(true);
                   setShowViewerControls(false);
                   setPreview(URL.createObjectURL(selectedFile));
+                  setScanMessage('');
                   addLog(`MOUNTED_SLICE: ${selectedFile.name.toUpperCase()}`);
                   FrontendSecurity.logEvent('FILE_UPLOAD', { action: 'file_selected', status: 'valid' });
                 }
               }} 
             />
             <label htmlFor="dicom-upload" className="mystic-gold-button">Upload Scan</label>
+            <div className="live-update-caption">
+              Supported formats: DICOM (.dcm), NIfTI (.nii, .nii.gz), JPG, PNG
+            </div>
 
             <label className="consent-checkbox-row compact">
               <input
@@ -2373,6 +2385,7 @@ function App() {
             >
               Detailed Report
             </button>
+            {scanMessage && <div className="booking-message">{scanMessage}</div>}
           </div>
 
           <div className="dicom-metadata-preview">
