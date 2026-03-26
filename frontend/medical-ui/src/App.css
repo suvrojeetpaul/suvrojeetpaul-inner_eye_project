@@ -626,36 +626,6 @@ body {
   min-height: 0;
 }
 
-.analysis-session-strip {
-  display: flex;
-  justify-content: flex-end;
-  gap: 24px;
-  padding: 8px 2px 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(78, 168, 255, 0.15);
-}
-
-.analysis-session-field {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.analysis-session-field span {
-  font-family: 'JetBrains Mono', monospace;
-  color: rgba(214, 229, 245, 0.75);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-}
-
-.analysis-session-field strong {
-  font-family: 'JetBrains Mono', monospace;
-  color: #f3f8ff;
-  font-size: 1.06rem;
-  letter-spacing: 0.03em;
-  font-weight: 600;
-}
-
 .sanctum-panel-box {
   background: linear-gradient(172deg, rgba(5, 9, 16, 0.95), rgba(2, 5, 10, 0.92));
   backdrop-filter: blur(8px);
@@ -1584,10 +1554,10 @@ body {
 }
 
 .data-row .value { 
-  font-size: 2.1rem; 
+  font-size: 1.12rem; 
   font-weight: 800;
   color: #f3f8ff;
-  line-height: 1.05;
+  line-height: 1.28;
   letter-spacing: 0.01em;
 }
 
@@ -1639,22 +1609,12 @@ body {
 }
 
 @media (max-width: 900px) {
-  .analysis-session-strip {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 14px;
-  }
-
-  .analysis-session-field strong {
-    font-size: 0.9rem;
-  }
-
   .three-dimension-viewport-container {
     min-height: 360px;
   }
 
   .data-row .value {
-    font-size: 1.5rem;
+    font-size: 0.96rem;
   }
 }
 
