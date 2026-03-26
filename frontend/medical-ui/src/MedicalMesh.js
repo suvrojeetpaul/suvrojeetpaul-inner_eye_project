@@ -78,6 +78,7 @@ function MedicalMesh({
     const controls = controlsRef.current;
     const camera = cameraRef.current;
     const rotateStep = Math.PI / 12;
+    const EPS = 0.0001;
 
     const zoomByFactor = (factor) => {
       const offset = camera.position.clone().sub(controls.target);
@@ -89,6 +90,17 @@ function MedicalMesh({
     const setPresetView = (x, y, z) => {
       camera.position.set(x, y, z);
       controls.target.set(0, 0, 0);
+      controls.update();
+    };
+
+    const rotateCameraBy = (deltaTheta = 0, deltaPhi = 0) => {
+      const offset = camera.position.clone().sub(controls.target);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.theta += deltaTheta;
+      spherical.phi = THREE.MathUtils.clamp(spherical.phi + deltaPhi, EPS, Math.PI - EPS);
+      offset.setFromSpherical(spherical);
+      camera.position.copy(controls.target.clone().add(offset));
+      camera.lookAt(controls.target);
       controls.update();
     };
 
@@ -108,16 +120,13 @@ function MedicalMesh({
         controls.update();
         break;
       case 'rotate-up':
-        controls.rotateUp(rotateStep * 0.7);
-        controls.update();
+        rotateCameraBy(0, -rotateStep * 0.7);
         break;
       case 'rotate-down':
-        controls.rotateUp(-rotateStep * 0.7);
-        controls.update();
+        rotateCameraBy(0, rotateStep * 0.7);
         break;
       case 'reset-view':
-        controls.reset();
-        controls.update();
+        setPresetView(0, 0, 6);
         break;
       case 'preset-front':
         setPresetView(0, 0, 6);

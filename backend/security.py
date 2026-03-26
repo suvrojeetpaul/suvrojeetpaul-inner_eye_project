@@ -42,7 +42,7 @@ class SecurityConfig:
     
     # File Upload Security
     MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "52428800"))  # 50MB
-    ALLOWED_FILE_EXTENSIONS = {".dcm", ".nii", ".nii.gz", ".jpg", ".png"}
+    ALLOWED_FILE_EXTENSIONS = {".dcm", ".nii", ".nii.gz", ".jpg", ".jpeg", ".png"}
     UPLOAD_DIRECTORY = "./uploaded_scans"
     
     # Data Security
@@ -181,8 +181,13 @@ class InputValidator:
         if file_size > SecurityConfig.MAX_FILE_SIZE:
             raise ValueError(f"File too large. Max size: {SecurityConfig.MAX_FILE_SIZE} bytes")
         
-        # Check file extension
-        file_ext = os.path.splitext(filename)[1].lower()
+        # Check file extension (support multi-part extensions like .nii.gz)
+        normalized_name = (filename or "").lower()
+        if normalized_name.endswith(".nii.gz"):
+            file_ext = ".nii.gz"
+        else:
+            file_ext = os.path.splitext(normalized_name)[1]
+
         if file_ext not in SecurityConfig.ALLOWED_FILE_EXTENSIONS:
             raise ValueError(f"Invalid file type. Allowed: {SecurityConfig.ALLOWED_FILE_EXTENSIONS}")
         

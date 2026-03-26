@@ -178,6 +178,7 @@ function App() {
   const [is3DExpanded, setIs3DExpanded] = useState(false);
   const [autoSpin3D, setAutoSpin3D] = useState(true);
   const [cinematicTour3D, setCinematicTour3D] = useState(false);
+  const [showViewerControls, setShowViewerControls] = useState(false);
   const [nearestBeds, setNearestBeds] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingMessage, setBookingMessage] = useState("");
@@ -313,7 +314,9 @@ function App() {
 
   const requestWithRetry = useCallback(async (url, options = {}, retryCount = 1) => {
     if (!apiRateLimiter.current()) {
-      throw new Error('Too many requests. Please wait a moment and try again.');
+      const rateLimitError = new Error('Too many requests. Please wait a moment and try again.');
+      rateLimitError.name = 'ClientRateLimitError';
+      throw rateLimitError;
     }
 
     const alternateUrl = getAlternateLoopbackUrl(url);
@@ -348,6 +351,30 @@ function App() {
     throw lastError || new Error('Request failed');
   }, []);
 
+  const isConnectivityError = useCallback((error) => {
+    if (!error) return false;
+    const name = String(error.name || '');
+    if (name === 'AbortError' || name === 'TypeError') return true;
+
+    const status = Number(error.status || 0);
+    if (status >= 500) return true;
+
+    const message = String(error.message || '').toLowerCase();
+    return (
+      message.includes('failed to fetch') ||
+      message.includes('networkerror') ||
+      message.includes('network request failed') ||
+      message.includes('request failed') ||
+      message.includes('backend connectivity interrupted')
+    );
+  }, []);
+
+  const updateBackendStatusFromError = useCallback((error) => {
+    const reachable = !isConnectivityError(error);
+    setBackendOnline(reachable);
+    return reachable;
+  }, [isConnectivityError]);
+
   // --- [4] CLINICAL DATABASE SYNC ---
   const fetchHistory = useCallback(async () => {
     if (!authToken) {
@@ -367,10 +394,11 @@ function App() {
       }
       setBackendOnline(true);
     } catch (err) {
-      setBackendOnline(false);
-      addLog("!! LINK_ERROR: REMOTE_DATABASE_OFFLINE");
+      if (!updateBackendStatusFromError(err)) {
+        addLog("!! LINK_ERROR: REMOTE_DATABASE_OFFLINE");
+      }
     }
-  }, [authHeaders, authToken, requestWithRetry]);
+  }, [authHeaders, authToken, requestWithRetry, updateBackendStatusFromError]);
 
   useEffect(() => {
     if (department && department !== 'hospital_dashboard') fetchHistory();
@@ -644,14 +672,21 @@ function App() {
         if (response.ok) {
           backendHealthFailCountRef.current = 0;
           setBackendOnline(true);
-        } else {
+        } else if (response.status >= 500) {
           backendHealthFailCountRef.current += 1;
           if (backendHealthFailCountRef.current >= 3) {
             setBackendOnline(false);
           }
+        } else {
+          // Non-5xx responses still prove the server is reachable.
+          backendHealthFailCountRef.current = 0;
+          setBackendOnline(true);
         }
       } catch (error) {
         if (!mounted) return;
+        if (error?.name === 'ClientRateLimitError') {
+          return;
+        }
         backendHealthFailCountRef.current += 1;
         if (backendHealthFailCountRef.current >= 3) {
           setBackendOnline(false);
@@ -698,18 +733,44 @@ function App() {
     country && stateRegion && district && city && locality.trim()
   );
 
+  const getFallbackPatientPayload = useCallback(() => {
+    const generatedBed = `TEMP-${new Date().getTime().toString().slice(-6)}`;
+    const locationFromParts = [locality.trim(), city, district, stateRegion, country]
+      .filter(Boolean)
+      .join(', ');
+
+    return {
+      patientName: patientName.trim() || 'Unknown Patient',
+      bedNumber: bedNumber.trim() || generatedBed,
+      residence: residence.trim() || locationFromParts || 'Location Unspecified',
+    };
+  }, [bedNumber, city, country, district, locality, patientName, residence, stateRegion]);
+
   const executeInference = async () => {
-    if (!authToken && backendOnline) {
-      alert('Please log in first to run analysis and save history.');
-      return;
-    }
     if (!consentChecked) {
       alert('Please provide consent before running medical analysis.');
       return;
     }
-    if (!file || !patientName.trim() || !bedNumber.trim() || !residence.trim() || !isCompleteLocation) {
+    if (!file) {
       addLog("!! ABORT: MISSING_SUBJECT_METADATA");
-      alert("Please complete the full location details (country, state/province, district/county, city, locality) and upload a scan before running analysis.");
+      alert('Please upload a scan before running analysis.');
+      return;
+    }
+
+    const safePayload = getFallbackPatientPayload();
+
+    if (!authToken) {
+      const offlineResult = buildOfflineClinicalResult({
+        file,
+        department,
+        patientName: safePayload.patientName,
+        bedNumber: safePayload.bedNumber,
+        residence: safePayload.residence,
+      });
+      setResult(offlineResult);
+      setActiveTab('QUANTITATIVE');
+      setBookingMessage('Local analysis completed. Log in to run server-side validated analysis and save history.');
+      addLog('AUTH_MISSING -> LOCAL_ANALYSIS_COMPLETED');
       return;
     }
 
@@ -724,6 +785,7 @@ function App() {
     setIs3DExpanded(false);
     setAutoSpin3D(true);
     setCinematicTour3D(false);
+    setShowViewerControls(false);
     setBookingMessage('');
     addLog(`INIT_SEGMENTATION: DATASET_${department.toUpperCase()}`);
     addLog("COMPUTING_ISOTROPIC_VOXEL_DENSITY");
@@ -731,9 +793,9 @@ function App() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('department', department);
-    formData.append('patient_name', patientName.trim());
-    formData.append('bed_number', bedNumber.trim());
-    formData.append('residence', residence.trim());
+    formData.append('patient_name', safePayload.patientName);
+    formData.append('bed_number', safePayload.bedNumber);
+    formData.append('residence', safePayload.residence);
     formData.append('consent', String(consentChecked));
 
     const controller = new AbortController();
@@ -746,9 +808,21 @@ function App() {
         headers: {
           ...authHeaders,
         },
-      }, 1);
+      }, 2);
       
-      if (!resp.ok) throw new Error("Backend Connectivity Interrupted");
+      if (!resp.ok) {
+        let detail = `Request failed (${resp.status})`;
+        try {
+          const payload = await resp.json();
+          detail = payload?.detail || payload?.message || detail;
+        } catch {
+          // Keep fallback detail when response body is not JSON.
+        }
+        const apiError = new Error(detail);
+        apiError.name = 'ApiResponseError';
+        apiError.status = resp.status;
+        throw apiError;
+      }
       
       const data = await resp.json();
       setResult(data);
@@ -766,20 +840,25 @@ function App() {
       setBackendOnline(true);
       backendHealthFailCountRef.current = 0;
     } catch (e) {
-      setBackendOnline(false);
+      const backendReachable = updateBackendStatusFromError(e);
       const offlineResult = buildOfflineClinicalResult({
         file,
         department,
-        patientName: patientName.trim(),
-        bedNumber: bedNumber.trim(),
-        residence: residence.trim(),
+        patientName: safePayload.patientName,
+        bedNumber: safePayload.bedNumber,
+        residence: safePayload.residence,
       });
       setResult(offlineResult);
       setActiveTab('QUANTITATIVE');
-      setBookingMessage('Offline mode enabled: showing local 3D estimate. Re-run when server is online for validated clinical results.');
-      if (e?.name === 'AbortError') {
+
+      if (backendReachable) {
+        setBookingMessage(`Server analysis unavailable (${e?.message || 'request error'}). Local 3D estimate has been generated.`);
+        addLog(`SERVER_ANALYSIS_FAILED -> LOCAL_FALLBACK: ${String(e?.message || 'UNKNOWN_ERROR').toUpperCase()}`);
+      } else if (e?.name === 'AbortError') {
+        setBookingMessage('Server timeout detected. Local 3D estimate generated successfully.');
         addLog('!! TIMEOUT: PROCESS_SCAN_REQUEST -> OFFLINE_FALLBACK_ACTIVATED');
       } else {
+        setBookingMessage('Backend unavailable. Local 3D estimate generated successfully.');
         addLog('!! BACKEND_UNAVAILABLE -> OFFLINE_FALLBACK_ACTIVATED');
       }
     } finally {
@@ -1023,6 +1102,7 @@ function App() {
     setLocality('');
     setResidence('');
     setCinematicTour3D(false);
+    setShowViewerControls(false);
   };
 
   const severityTheme = useMemo(() => {
@@ -1152,19 +1232,23 @@ function App() {
       FrontendSecurity.setToLocalStorage(OFFLINE_HOSPITAL_CACHE_KEY, data.hospitals || []);
       setBackendOnline(true);
     } catch (error) {
-      setBackendOnline(false);
+      const backendReachable = updateBackendStatusFromError(error);
       const cachedHospitals = FrontendSecurity.getFromLocalStorage(OFFLINE_HOSPITAL_CACHE_KEY) || [];
       if (Array.isArray(cachedHospitals) && cachedHospitals.length > 0) {
         setHospitalInventory(cachedHospitals);
         if (!selectedHospitalName && cachedHospitals[0]?.hospital) {
           setSelectedHospitalName(cachedHospitals[0].hospital);
         }
-        setDashboardMessage('Offline mode: showing last saved hospital dashboard data.');
+        setDashboardMessage(backendReachable
+          ? `Unable to load hospital dashboard: ${error.message}`
+          : 'Offline mode: showing last saved hospital dashboard data.');
       } else {
-        setDashboardMessage('Unable to load hospital dashboard right now.');
+        setDashboardMessage(backendReachable
+          ? `Unable to load hospital dashboard: ${error.message}`
+          : 'Unable to load hospital dashboard right now.');
       }
     }
-  }, [requestWithRetry, selectedHospitalName, authHeaders]);
+  }, [requestWithRetry, selectedHospitalName, authHeaders, updateBackendStatusFromError]);
 
   useEffect(() => {
     const selectedHospital = hospitalInventory.find((item) => item.hospital === selectedHospitalName);
@@ -1204,7 +1288,7 @@ function App() {
       setBackendOnline(true);
       fetchHospitalDashboard();
     } catch (error) {
-      setBackendOnline(false);
+      const backendReachable = updateBackendStatusFromError(error);
       const fallbackHospitals = [...hospitalInventory];
       const idx = fallbackHospitals.findIndex((item) => item.hospital === selectedHospitalName);
       if (idx >= 0) {
@@ -1218,7 +1302,9 @@ function App() {
         };
         setHospitalInventory(fallbackHospitals);
         FrontendSecurity.setToLocalStorage(OFFLINE_HOSPITAL_CACHE_KEY, fallbackHospitals);
-        setDashboardMessage('Offline mode: availability saved locally and will sync when backend is online.');
+        setDashboardMessage(backendReachable
+          ? `Update failed: ${error.message}`
+          : 'Offline mode: availability saved locally and will sync when backend is online.');
       } else {
         setDashboardMessage(`Update failed: ${error.message}`);
       }
@@ -1304,11 +1390,13 @@ function App() {
       setBookingMessage('Emergency mode enabled: nearest ICU hospitals loaded.');
       setBackendOnline(true);
     } catch (error) {
-      setBackendOnline(false);
+      const backendReachable = updateBackendStatusFromError(error);
       const cached = FrontendSecurity.getFromLocalStorage('dishaLastHospitals') || [];
       if (cached.length > 0) {
         setNearestBeds(cached);
-        setBookingMessage('Network issue: showing last known hospital data (offline fallback).');
+        setBookingMessage(backendReachable
+          ? `Emergency mode failed: ${error.message}`
+          : 'Network issue: showing last known hospital data (offline fallback).');
       } else {
         setBookingMessage(`Emergency mode failed: ${error.message}`);
       }
@@ -1380,22 +1468,26 @@ function App() {
         setBackendOnline(true);
         addLog(`BED_OPTIONS_READY: ${data.options?.length || 0}`);
       } catch (err) {
-        setBackendOnline(false);
+        const backendReachable = updateBackendStatusFromError(err);
         setTriageRecommendation(null);
         setBedRecommendations({ current: null, predicted: null });
         const cached = FrontendSecurity.getFromLocalStorage('dishaLastHospitals') || [];
         if (cached.length > 0) {
           setNearestBeds(cached);
-          setBookingMessage('Network issue: showing last known hospitals (offline fallback).');
+          setBookingMessage(backendReachable
+            ? `Unable to load nearby bed options: ${err.message}`
+            : 'Network issue: showing last known hospitals (offline fallback).');
         } else {
-          setBookingMessage('Unable to load nearby bed options right now. Please try again.');
+          setBookingMessage(backendReachable
+            ? `Unable to load nearby bed options: ${err.message}`
+            : 'Unable to load nearby bed options right now. Please try again.');
         }
       } finally {
         setBookingLoading(false);
       }
     }, 400);
     debounceTimerRef.current = timer;
-  }, [result, residence, searchWorldwide, requestWithRetry, authHeaders, isCompleteLocation, bookingSeverity, bookingSymptoms]);
+  }, [result, residence, searchWorldwide, requestWithRetry, authHeaders, isCompleteLocation, bookingSeverity, bookingSymptoms, updateBackendStatusFromError]);
 
   useEffect(() => {
     if (!carePath || !['booking', 'hospital'].includes(carePath)) return undefined;
@@ -1500,7 +1592,7 @@ function App() {
       addLog(`BED_BOOKED: ${data.booking_id}`);
       setTimeout(fetchNearestBeds, 500); // Refresh bed list after booking
     } catch (err) {
-      setBackendOnline(false);
+      const backendReachable = updateBackendStatusFromError(err);
       const provisionalId = `OFFLINE-${Date.now().toString().slice(-7)}`;
       setBookingInfo({
         booking_id: provisionalId,
@@ -1513,7 +1605,9 @@ function App() {
         tracking_id: null,
         last_updated: new Date().toISOString().replace('T', ' ').slice(0, 19),
       });
-      setBookingMessage('Offline mode: provisional booking created locally. Reconnect to server to confirm hospital-side reservation.');
+      setBookingMessage(backendReachable
+        ? `Booking failed: ${err.message}`
+        : 'Offline mode: provisional booking created locally. Reconnect to server to confirm hospital-side reservation.');
     } finally {
       bookingInFlightRef.current.delete(bookingKey);
       setBookingLoading(false);
@@ -2190,12 +2284,18 @@ function App() {
           </aside>
         </div>
       ) : (
+      <>
+      <div className="analysis-session-strip" role="status" aria-live="polite">
+        <div className="analysis-session-field"><span>PATIENT_NAME</span><strong>{patientName || result?.patient_name || file?.name || 'PENDING'}</strong></div>
+        <div className="analysis-session-field"><span>DATASET</span><strong>{result?.dataset_context || (department === 'pulmonary' ? 'LUNA16' : department === 'cardio_thoracic' ? 'LiTS' : 'BraTS 2021')}</strong></div>
+        <div className="analysis-session-field"><span>SESSION_ID</span><strong>{result?.subject_id || 'MONAI-PENDING'}</strong></div>
+      </div>
       <div className="sanctum-main-layout">
         
         {/* PANEL: 2D AXIAL SLICE */}
         <aside className="sanctum-panel-box side-column">
           <div className="panel-header-row">
-            <div className="mystic-header-label">2D Scan Viewer</div>
+            <div className="mystic-header-label">2D_AXIAL_SLICE_VIEWER</div>
           </div>
           
           <div className="mirror-viewport-container">
@@ -2233,6 +2333,7 @@ function App() {
                   setIs3DExpanded(false);
                   setCinematicTour3D(false);
                   setAutoSpin3D(true);
+                  setShowViewerControls(false);
                   setPreview(URL.createObjectURL(selectedFile));
                   addLog(`MOUNTED_SLICE: ${selectedFile.name.toUpperCase()}`);
                   FrontendSecurity.logEvent('FILE_UPLOAD', { action: 'file_selected', status: 'valid' });
@@ -2281,11 +2382,11 @@ function App() {
         {/* PANEL: 3D VOLUMETRIC RECONSTRUCTION */}
         <main className="sanctum-panel-box main-column">
           <div className="panel-header-row">
-            <div className="mystic-header-label">3D Tumor View</div>
+            <div className="mystic-header-label">3D_MULTI_CLASS_SEGMENTATION_MASK</div>
             {result && (
               <div className="view-toggle-controls">
-                <button className={viewMode === "VOXEL" ? "active" : ""} onClick={() => setViewMode("VOXEL")}>Solid</button>
-                <button className={viewMode === "WIRE" ? "active" : ""} onClick={() => setViewMode("WIRE")}>Wireframe</button>
+                <button className={viewMode === "VOXEL" ? "active" : ""} onClick={() => setViewMode("VOXEL")}>VOXEL</button>
+                <button className={viewMode === "WIRE" ? "active" : ""} onClick={() => setViewMode("WIRE")}>WIRE</button>
               </div>
             )}
           </div>
@@ -2346,8 +2447,18 @@ function App() {
               </button>
             )}
 
-            {result && (
+            {result && !showViewerControls && (
+              <button
+                className="viewer-options-toggle-btn"
+                onClick={() => setShowViewerControls(true)}
+              >
+                More Options
+              </button>
+            )}
+
+            {result && showViewerControls && (
               <div className="viewport-control-dock" role="group" aria-label="3D viewport controls">
+                <button className="dock-btn dock-btn-hide" onClick={() => setShowViewerControls(false)}>Hide Options</button>
                 <button className="dock-btn" onClick={() => issueViewerCommand('zoom-in')}>Zoom +</button>
                 <button className="dock-btn" onClick={() => issueViewerCommand('zoom-out')}>Zoom -</button>
                 <button className="dock-btn" onClick={() => issueViewerCommand('rotate-left')}>Rotate Left</button>
@@ -2394,11 +2505,11 @@ function App() {
         </main>
 
         {/* PANEL: QUANTITATIVE ANALYTICS */}
-        <aside className="sanctum-panel-box side-column analytics-panel">
+        <aside className="sanctum-panel-box side-column analytics-panel terminal-metrics-panel">
           <div className="tab-navigation">
-            <button className={activeTab === "QUANTITATIVE" ? "active" : ""} onClick={() => setActiveTab("QUANTITATIVE")}>Metrics</button>
-            <button className={activeTab === "REPORT" ? "active" : ""} onClick={() => setActiveTab("REPORT")}>Report</button>
-            <button className={activeTab === "HISTORY" ? "active" : ""} onClick={() => setActiveTab("HISTORY")}>History</button>
+            <button className={activeTab === "QUANTITATIVE" ? "active" : ""} onClick={() => setActiveTab("QUANTITATIVE")}>METRICS</button>
+            <button className={activeTab === "REPORT" ? "active" : ""} onClick={() => setActiveTab("REPORT")}>ARCHIVES</button>
+            <button className={activeTab === "HISTORY" ? "active" : ""} onClick={() => setActiveTab("HISTORY")}>LOGS</button>
           </div>
 
           <div className="tab-body-content" key={activeTab} style={{ animation: 'fadeIn 0.22s ease both' }}>
@@ -2408,7 +2519,7 @@ function App() {
                   <div className="report-data-stack">
                     <div className="data-row">
                       <span className="label">Prediction</span>
-                      <span className={`value ${result.prediction.includes('DETECTED') ? 'red' : 'green'}`}>{result.prediction}</span>
+                      <span className={`value ${result.prediction.includes('NO TUMOR') ? 'green' : result.prediction.includes('DETECTED') ? 'red' : ''}`}>{result.prediction}</span>
                     </div>
                     <div className="data-row"><span className="label">Tumor Volume</span><span className="value blue">{result.volume}</span></div>
                     <div className="data-row"><span className="label">Max Diameter</span><span className="value">{result.diameter}</span></div>
@@ -2416,6 +2527,14 @@ function App() {
                     <div className="data-row">
                       <span className="label">Severity</span>
                       <span className={`value status-${result.severity?.toLowerCase()}`}>{result.severity}</span>
+                    </div>
+                    <div className="kernel-log-shell">
+                      <div className="kernel-log-title">SYSTEM_KERNEL_LOG</div>
+                      <div className="terminal-log-output compact">
+                        {logsRef.current.slice(-7).map((line, idx) => (
+                          <div key={`${line}-${idx}`} className="log-line">{line}</div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2475,6 +2594,7 @@ function App() {
         </aside>
 
       </div>
+      </>
       )}
     </div>
   );
