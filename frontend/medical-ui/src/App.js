@@ -759,12 +759,6 @@ function App() {
 
     const safePayload = getFallbackPatientPayload();
 
-    if (!authToken && backendOnline) {
-      setBookingMessage('Please log in to run online analysis from the server.');
-      addLog('AUTH_REQUIRED_FOR_ONLINE_ANALYSIS');
-      return;
-    }
-
     if (!authToken) {
       const offlineResult = buildOfflineClinicalResult({
         file,
@@ -775,7 +769,11 @@ function App() {
       });
       setResult(offlineResult);
       setActiveTab('QUANTITATIVE');
-      setBookingMessage('Local analysis completed. Log in to run server-side validated analysis and save history.');
+      setBookingMessage(
+        backendOnline
+          ? 'Guest mode analysis completed locally. Log in to run server-validated analysis and save history.'
+          : 'Local analysis completed. Log in to run server-side validated analysis and save history.'
+      );
       addLog('AUTH_MISSING -> LOCAL_ANALYSIS_COMPLETED');
       return;
     }
@@ -1032,8 +1030,7 @@ function App() {
 
   const enterDetectionFlow = () => {
     if (!authToken && backendOnline) {
-      setAuthMessage('Please log in first to continue.');
-      return;
+      setAuthMessage('Guest mode enabled: local analysis is available. Log in for server-validated reports and saved history.');
     }
     if (!authToken && !backendOnline) {
       setAuthMessage('Offline mode active: local 3D continuity analysis is available.');
@@ -1064,8 +1061,7 @@ function App() {
 
   const openDetectionDepartment = (departmentId) => {
     if (!authToken && backendOnline) {
-      setAuthMessage('Please log in first to continue.');
-      return;
+      setAuthMessage('Guest mode enabled: running local analysis only until you log in.');
     }
     setCarePath('detection');
     setDepartment(departmentId);

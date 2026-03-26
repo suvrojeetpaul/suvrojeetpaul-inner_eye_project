@@ -8,6 +8,7 @@ import datetime
 import secrets
 import hashlib
 import asyncio
+import tempfile
 import jwt
 import torch
 import numpy as np
@@ -213,7 +214,7 @@ def validate_password_strength(password: str) -> None:
 
 
 def issue_access_token(username: str, role: str) -> Dict[str, Any]:
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     exp = now + datetime.timedelta(minutes=ACCESS_TOKEN_EXP_MINUTES)
     csrf_token = secrets.token_urlsafe(24)
     payload = {
@@ -227,7 +228,7 @@ def issue_access_token(username: str, role: str) -> Dict[str, Any]:
     return {
         "token": token,
         "csrf_token": csrf_token,
-        "expires_at": exp.isoformat() + "Z",
+        "expires_at": exp.isoformat().replace("+00:00", "Z"),
     }
 
 
@@ -916,12 +917,20 @@ def process_3d_volume(pixel_array, spacing, thickness, dept_key):
     """
     config = DATASET_MAP.get(dept_key)
     
-    # 1. Volume Interpolation (Z-Stacking)
-    z_depth = 12
-    volume_stack = np.stack([pixel_array for _ in range(z_depth)])
+    pixel_array = np.asarray(pixel_array)
+    if pixel_array.ndim == 2:
+        # Build a shallow 3D stack for single-slice inputs.
+        z_depth = 12
+        volume_stack = np.stack([pixel_array for _ in range(z_depth)])
+    elif pixel_array.ndim == 3:
+        volume_stack = pixel_array
+    else:
+        raise ValueError("UNSUPPORTED_SCAN_DIMENSIONS")
     
     # Interpolation factor to make voxels 1mm x 1mm x 1mm
-    resize_factor = [thickness / spacing[0], 1, 1]
+    safe_spacing = float(spacing[0]) if spacing and float(spacing[0]) > 0 else 1.0
+    safe_thickness = float(thickness) if float(thickness) > 0 else 1.0
+    resize_factor = [safe_thickness / safe_spacing, 1, 1]
     interpolated = zoom(volume_stack, resize_factor, mode='nearest')
     
     # 2. Multi-Class Segmentation Simulation (Class 1: Organ, Class 2: Tumor)
@@ -952,6 +961,48 @@ def process_3d_volume(pixel_array, spacing, thickness, dept_key):
     tumor_data = np.hstack([norm_tumor, np.full((len(norm_tumor), 1), 2)])
     
     return np.vstack([organ_data, tumor_data]).tolist(), int(len(np.argwhere(tumor_mask)))
+
+
+def load_scan_payload(filename: str, contents: bytes):
+    lower_name = (filename or "").lower()
+
+    if lower_name.endswith('.dcm'):
+        with io.BytesIO(contents) as f:
+            ds = pydicom.dcmread(f)
+            pixel_data = np.asarray(ds.pixel_array)
+            spacing = getattr(ds, "PixelSpacing", [0.7, 0.7])
+            thickness = getattr(ds, "SliceThickness", 2.5)
+            modality = str(getattr(ds, "Modality", "DICOM"))
+            return pixel_data, spacing, thickness, modality
+
+    if lower_name.endswith('.nii') or lower_name.endswith('.nii.gz'):
+        suffix = '.nii.gz' if lower_name.endswith('.nii.gz') else '.nii'
+        fd, temp_path = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)
+        try:
+            with open(temp_path, 'wb') as tmp:
+                tmp.write(contents)
+
+            nii_img = nib.load(temp_path)
+            volume = np.asarray(nii_img.get_fdata(dtype=np.float32))
+            if volume.ndim > 3:
+                volume = volume[..., 0]
+            if volume.ndim != 3:
+                raise ValueError("NIFTI_VOLUME_MUST_BE_3D")
+
+            zooms = tuple(float(v) for v in nii_img.header.get_zooms()[:3])
+            spacing = [zooms[1] if len(zooms) > 1 else 1.0, zooms[2] if len(zooms) > 2 else 1.0]
+            thickness = zooms[0] if len(zooms) > 0 else 1.0
+            return volume, spacing, thickness, "NIFTI_IMPORT"
+        finally:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+    image = Image.open(io.BytesIO(contents)).convert("L")
+    pixel_data = np.asarray(image)
+    return pixel_data, [0.7, 0.7], 2.5, "CT_IMPORT"
 
 # --- API ENDPOINTS ---
 @app.post("/auth/signup")
@@ -1075,21 +1126,17 @@ async def process_scan(
     # Security: Log upload attempt
     security_logger.log_successful_upload(department)
     
+    if department not in DATASET_MAP:
+        raise HTTPException(status_code=422, detail="UNSUPPORTED_DEPARTMENT")
+
     try:
-        if file.filename.lower().endswith('.dcm'):
-            with io.BytesIO(contents) as f:
-                ds = pydicom.dcmread(f)
-                pixel_data = ds.pixel_array
-                spacing = ds.PixelSpacing
-                thickness = ds.SliceThickness
-                modality = ds.Modality
-        else:
-            modality = "CT_IMPORT"
-            pixel_data = np.array(Image.open(io.BytesIO(contents)).convert("L"))
-            spacing, thickness = [0.7, 0.7], 2.5
+        pixel_data, spacing, thickness, modality = load_scan_payload(file.filename, contents)
+    except ValueError as e:
+        security_logger.log_failed_upload(f"Parse validation error: {str(e)}", department)
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         security_logger.log_failed_upload(f"Parse error: {type(e).__name__}", department)
-        raise HTTPException(status_code=400, detail="DICOM_PARSE_ERROR")
+        raise HTTPException(status_code=400, detail="SCAN_PARSE_ERROR")
 
     # Run Reconstruction
     voxel_cloud, tumor_count = process_3d_volume(pixel_data, spacing, thickness, department)
