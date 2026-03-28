@@ -157,6 +157,7 @@ const buildOfflineClinicalResult = ({ file, department, patientName, bedNumber, 
 function App() {
   const [landingStep, setLandingStep] = useState("welcome");
   const [carePath, setCarePath] = useState(null);
+  const [isAppBooting, setIsAppBooting] = useState(true);
 
   // --- [1] CORE SYSTEM STATE ---
   const [department, setDepartment] = useState(null);
@@ -457,6 +458,13 @@ function App() {
     );
   }, [compactMode, darkMode, filterIcuOnly, language, largeTextMode, maxDistanceKm]);
 
+  useEffect(() => {
+    const bootTimer = setTimeout(() => {
+      setIsAppBooting(false);
+    }, 1800);
+    return () => clearTimeout(bootTimer);
+  }, []);
+
   const filteredNearestBeds = useMemo(() => {
     const normalizedQuery = bedSearchQuery.trim().toLowerCase();
     return nearestBeds.filter((option) => {
@@ -544,6 +552,9 @@ function App() {
       setAuthFormPassword('');
       setAuthFormInviteCode('');
       setAuthMessage(authFormMode === 'signup' ? 'Account created successfully.' : 'Logged in successfully.');
+      setLandingStep('care');
+      setCarePath(null);
+      setDepartment(null);
     } catch (error) {
       const isNetworkFailure =
         error?.name === 'TypeError' ||
@@ -558,7 +569,7 @@ function App() {
     }
   };
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback((redirectMode = 'main') => {
     setAuthToken('');
     setAuthUsername('');
     setAuthRole('patient');
@@ -570,8 +581,38 @@ function App() {
     FrontendSecurity.clearLocalStorage('dishaAuthRole');
     FrontendSecurity.clearLocalStorage('dishaAuthCsrfToken');
     FrontendSecurity.clearLocalStorage('dishaAuthExpiresAt');
+
+    if (redirectMode === 'previous') {
+      setDepartment(null);
+      setCarePath(null);
+      setResult(null);
+      setFile(null);
+      setPreview(null);
+      setLoading(false);
+      setActiveTab('QUANTITATIVE');
+      setNearestBeds([]);
+      setBookingInfo(null);
+      setBookingMessage('');
+      setScanMessage('');
+      setIs3DExpanded(false);
+      setAutoSpin3D(true);
+      setCinematicTour3D(false);
+      setShowViewerControls(false);
+      setLandingStep('welcome');
+    } else {
+      setDepartment(null);
+      setCarePath(null);
+      setLandingStep('welcome');
+    }
+
     setAuthMessage('Logged out.');
   }, []);
+
+  const confirmLogout = useCallback((redirectMode = 'previous') => {
+    const shouldLogout = window.confirm('Are you sure you want to log out?');
+    if (!shouldLogout) return;
+    handleLogout(redirectMode);
+  }, [handleLogout]);
 
   useEffect(() => {
     if (!authToken || !authExpiresAt) return undefined;
@@ -1630,6 +1671,22 @@ function App() {
   };
 
   // --- [6] RENDER: LANDING PORTAL ---
+  const landingViewStep = useMemo(() => {
+    if (isAppBooting) {
+      return 'splash';
+    }
+
+    if (authToken) {
+      return landingStep === 'departments' ? 'departments' : 'care';
+    }
+
+    if (['welcome', 'auth'].includes(landingStep)) {
+      return landingStep;
+    }
+
+    return 'auth';
+  }, [authToken, isAppBooting, landingStep]);
+
   if (!department) return (
     <div className={`portal-master-container ${darkMode ? 'theme-dark' : 'theme-light'} ${largeTextMode ? 'large-text-mode' : ''} ${compactMode ? 'compact-mode' : ''}`}>
       <div className="grid-overlay"></div>
@@ -1658,79 +1715,28 @@ function App() {
           </label>
         </div>
 
-        <div className="auth-card">
-          <div className="auth-card-title">{authToken ? `Logged in as ${authUsername} (${authRole})` : 'Secure Login / Signup'}</div>
-          {authToken ? (
-            <button className="mystic-gold-button" onClick={handleLogout}>Logout</button>
-          ) : (
-            <>
-              <div className="auth-mode-toggle">
-                <button className={authFormMode === 'login' ? 'active' : ''} onClick={() => { setAuthFormMode('login'); setAuthMessage(''); }}>Login</button>
-                <button className={authFormMode === 'signup' ? 'active' : ''} onClick={() => { setAuthFormMode('signup'); setAuthMessage(''); }}>Signup</button>
-              </div>
-              <input
-                className="magic-input-field"
-                placeholder="Username (a-z, 0-9, _, -, .)"
-                value={authFormUsername}
-                onChange={(e) => setAuthFormUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-              />
-              <div className="auth-helper-text">Use 3-32 lowercase characters: a-z, 0-9, underscore (_), hyphen (-), dot (.).</div>
-              <input
-                className="magic-input-field"
-                type={showAuthPassword ? 'text' : 'password'}
-                placeholder="Password (minimum 8 characters)"
-                value={authFormPassword}
-                onChange={(e) => setAuthFormPassword(e.target.value)}
-              />
-              <label className="consent-checkbox-row compact auth-show-password-row">
-                <input
-                  type="checkbox"
-                  checked={showAuthPassword}
-                  onChange={(e) => setShowAuthPassword(e.target.checked)}
-                />
-                Show password
-              </label>
-              {authFormMode === 'signup' && (
-                <>
-                  <select
-                    className="magic-input-field"
-                    value={authFormRole}
-                    onChange={(e) => setAuthFormRole(e.target.value)}
-                  >
-                    <option value="patient">Patient</option>
-                    <option value="hospital_admin">Hospital Admin</option>
-                    <option value="system_admin">System Admin</option>
-                  </select>
-                  {authFormRole !== 'patient' && (
-                    <input
-                      className="magic-input-field"
-                      type={showAuthPassword ? 'text' : 'password'}
-                      placeholder="Admin invite code"
-                      value={authFormInviteCode}
-                      onChange={(e) => setAuthFormInviteCode(e.target.value)}
-                    />
-                  )}
-                </>
-              )}
-              <button className="mystic-gold-button primary" onClick={handleAuthSubmit} disabled={authLoading}>
-                {authLoading ? 'Please wait...' : authFormMode === 'signup' ? 'Create Account' : 'Login'}
-              </button>
-            </>
-          )}
-          {authMessage && <div className="auth-message">{authMessage}</div>}
-        </div>
-
-        <div className="medical-disclaimer-banner">
-          <strong>Medical disclaimer:</strong> {t('disclaimer')}
-          <br />
-          <strong>Emergency guidance:</strong> {t('emergencyGuidance')}
-        </div>
+        {landingViewStep !== 'splash' && (
+          <div className="medical-disclaimer-banner">
+            <strong>Medical disclaimer:</strong> {t('disclaimer')}
+            <br />
+            <strong>Emergency guidance:</strong> {t('emergencyGuidance')}
+          </div>
+        )}
 
         <div
-          key={landingStep}
-          className={`landing-stage ${landingStep === 'welcome' ? 'welcome-stage' : 'options-stage'}`}
+          key={landingViewStep}
+          className={`landing-stage ${landingViewStep === 'welcome' ? 'welcome-stage' : 'options-stage'}`}
         >
-          {landingStep === 'welcome' ? (
+          {landingViewStep === 'splash' ? (
+            <div className="splash-stage-container">
+              <div className="disha-boot-logo">DISHA</div>
+              <div className="disha-boot-subtitle">your care, our vision</div>
+              <div className="boot-loader-track">
+                <div className="boot-loader-fill"></div>
+              </div>
+              <div className="boot-loader-text">Loading secure care workspace...</div>
+            </div>
+          ) : landingViewStep === 'welcome' ? (
             <div className="welcome-pop-card">
               <h2>Welcome to DISHA</h2>
               <p>
@@ -1739,16 +1745,75 @@ function App() {
               <div className="welcome-cta-wrap">
                 <button
                   className="welcome-cta-btn"
-                  onClick={() => setLandingStep('care')}
+                  onClick={() => setLandingStep('auth')}
                 >
-                  Continue
+                  Continue to Login
                 </button>
                 <div className="welcome-hover-tip">
-                  Choose patient booking, hospital dashboard, or tumor detection.
+                  Sign in first, then choose bed booking, dashboard, or tumor detection.
                 </div>
               </div>
             </div>
-          ) : landingStep === 'care' ? (
+          ) : landingViewStep === 'auth' ? (
+            <div className="auth-stage-shell">
+              <div className="auth-card">
+                <div className="auth-card-title">Secure Login / Signup</div>
+                <div className="auth-mode-toggle">
+                  <button className={authFormMode === 'login' ? 'active' : ''} onClick={() => { setAuthFormMode('login'); setAuthMessage(''); }}>Login</button>
+                  <button className={authFormMode === 'signup' ? 'active' : ''} onClick={() => { setAuthFormMode('signup'); setAuthMessage(''); }}>Signup</button>
+                </div>
+                <input
+                  className="magic-input-field"
+                  placeholder="Username (a-z, 0-9, _, -, .)"
+                  value={authFormUsername}
+                  onChange={(e) => setAuthFormUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                />
+                <div className="auth-helper-text">Use 3-32 lowercase characters: a-z, 0-9, underscore (_), hyphen (-), dot (.).</div>
+                <input
+                  className="magic-input-field"
+                  type={showAuthPassword ? 'text' : 'password'}
+                  placeholder="Password (minimum 8 characters)"
+                  value={authFormPassword}
+                  onChange={(e) => setAuthFormPassword(e.target.value)}
+                />
+                <label className="consent-checkbox-row compact auth-show-password-row">
+                  <input
+                    type="checkbox"
+                    checked={showAuthPassword}
+                    onChange={(e) => setShowAuthPassword(e.target.checked)}
+                  />
+                  Show password
+                </label>
+                {authFormMode === 'signup' && (
+                  <>
+                    <select
+                      className="magic-input-field"
+                      value={authFormRole}
+                      onChange={(e) => setAuthFormRole(e.target.value)}
+                    >
+                      <option value="patient">Patient</option>
+                      <option value="hospital_admin">Hospital Admin</option>
+                      <option value="system_admin">System Admin</option>
+                    </select>
+                    {authFormRole !== 'patient' && (
+                      <input
+                        className="magic-input-field"
+                        type={showAuthPassword ? 'text' : 'password'}
+                        placeholder="Admin invite code"
+                        value={authFormInviteCode}
+                        onChange={(e) => setAuthFormInviteCode(e.target.value)}
+                      />
+                    )}
+                  </>
+                )}
+                <button className="mystic-gold-button primary" onClick={handleAuthSubmit} disabled={authLoading}>
+                  {authLoading ? 'Please wait...' : authFormMode === 'signup' ? 'Create Account' : 'Login'}
+                </button>
+                {authMessage && <div className="auth-message">{authMessage}</div>}
+              </div>
+              <button className="landing-back-button" onClick={() => setLandingStep('welcome')}>Back to Welcome</button>
+            </div>
+          ) : landingViewStep === 'care' ? (
             <>
               <div className="selection-help-text">Choose how you want to continue</div>
               <div className="portal-selection-grid">
@@ -1759,7 +1824,7 @@ function App() {
                 ].map((item, idx) => (
                   <div
                     key={item.id}
-                    className={`portal-magic-card ${idx === 0 ? 'featured-card' : ''}`}
+                    className={`portal-magic-card card-theme-${item.id} ${idx === 0 ? 'featured-card' : ''}`}
                     style={{ '--card-delay': `${idx * 120}ms` }}
                     onClick={() => item.id === 'booking' ? enterBookingFlow() : item.id === 'hospital' ? enterHospitalDashboardFlow() : enterDetectionFlow()}
                   >
@@ -1771,7 +1836,7 @@ function App() {
                   </div>
                 ))}
               </div>
-              <button className="landing-back-button" onClick={() => setLandingStep('welcome')}>Back</button>
+              <button className="landing-back-button" onClick={() => setLandingStep('welcome')}>Back to Main Page</button>
             </>
           ) : (
             <>
@@ -1784,7 +1849,7 @@ function App() {
                 ].map((item, idx) => (
                   <div
                     key={item.id}
-                    className={`portal-magic-card ${idx === 1 ? 'featured-card' : ''}`}
+                    className={`portal-magic-card card-theme-${item.id} ${idx === 1 ? 'featured-card' : ''}`}
                     style={{ '--card-delay': `${idx * 120}ms` }}
                     onClick={() => openDetectionDepartment(item.id)}
                   >
@@ -1813,7 +1878,7 @@ function App() {
       <header className="sanctum-header-hud">
         <div className="header-left">
           <button className="back-portal-button" onClick={resetSession}>Exit Session</button>
-          {authToken && <button className="back-portal-button" onClick={handleLogout}>Logout</button>}
+          {authToken && <button className="back-portal-button" onClick={() => confirmLogout('previous')}>Logout</button>}
           <div className="breadcrumb-path">
             Session / {departmentLabel} / <span className="blue-text">{carePath === 'booking' ? 'Bed Routing' : carePath === 'hospital' ? 'Live Operations' : '3D Scan Analysis'}</span>
           </div>
