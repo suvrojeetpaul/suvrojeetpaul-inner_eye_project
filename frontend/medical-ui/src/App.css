@@ -149,6 +149,44 @@ body {
   100% { transform: translateX(102%); }
 }
 
+@keyframes orbitPulse {
+  0%, 100% {
+    transform: scale(0.98);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes beamSweep {
+  0% {
+    transform: translateY(38%) scaleX(0.96);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(-38%) scaleX(1.04);
+    opacity: 0;
+  }
+}
+
+@keyframes chipReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    letter-spacing: 0.16em;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: 0.22em;
+  }
+}
+
 @keyframes titleAura {
   0%, 100% { filter: drop-shadow(0 0 20px rgba(95, 217, 255, 0.2)); }
   50% { filter: drop-shadow(0 0 34px rgba(95, 217, 255, 0.34)); }
@@ -365,14 +403,101 @@ body {
 .splash-stage-container {
   width: min(720px, 88vw);
   margin-top: 24px;
-  padding: 34px 24px;
+  padding: 34px 24px 28px;
   border: 1px solid rgba(95, 217, 255, 0.26);
   border-radius: var(--radius-xl);
-  background: linear-gradient(160deg, rgba(8, 16, 30, 0.8), rgba(5, 10, 20, 0.7));
+  background:
+    radial-gradient(circle at 18% 16%, rgba(95, 217, 255, 0.14), transparent 42%),
+    radial-gradient(circle at 82% 82%, rgba(255, 204, 115, 0.1), transparent 44%),
+    linear-gradient(160deg, rgba(8, 16, 30, 0.86), rgba(5, 10, 20, 0.72));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(95, 217, 255, 0.12) inset;
   animation: stageIn 0.45s ease both;
+  position: relative;
+  overflow: hidden;
+}
+
+.boot-skip-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 1px solid rgba(95, 217, 255, 0.42);
+  background: rgba(8, 16, 30, 0.7);
+  color: #dff3ff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  z-index: 2;
+}
+
+.boot-skip-btn:hover {
+  border-color: rgba(95, 217, 255, 0.75);
+  box-shadow: 0 0 16px rgba(95, 217, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.boot-rings-wrap {
+  width: min(360px, 88vw);
+  height: 150px;
+  margin: 0 auto 6px;
+  position: relative;
+}
+
+.boot-orbit-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(95, 217, 255, 0.26);
+  box-shadow: 0 0 24px rgba(95, 217, 255, 0.16), inset 0 0 16px rgba(95, 217, 255, 0.1);
+  animation: orbitPulse 2.2s ease-in-out infinite;
+}
+
+.boot-orbit-ring.ring-one {
+  width: min(320px, 82vw);
+  height: 124px;
+}
+
+.boot-orbit-ring.ring-two {
+  width: min(248px, 68vw);
+  height: 88px;
+  animation-delay: 0.4s;
+  border-color: rgba(255, 204, 115, 0.32);
+  box-shadow: 0 0 24px rgba(255, 204, 115, 0.14), inset 0 0 16px rgba(255, 204, 115, 0.08);
+}
+
+.boot-signal-beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(300px, 80vw);
+  height: 2px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent 0%, rgba(95, 217, 255, 0.9) 30%, rgba(255, 204, 115, 0.94) 50%, rgba(95, 217, 255, 0.9) 70%, transparent 100%);
+  filter: drop-shadow(0 0 10px rgba(95, 217, 255, 0.45));
+  animation: beamSweep 2.1s linear infinite;
+}
+
+.disha-boot-chip {
+  display: inline-flex;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 217, 255, 0.34);
+  background: rgba(8, 15, 28, 0.68);
+  color: rgba(191, 229, 255, 0.92);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 8px;
+  animation: chipReveal 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .disha-boot-logo {
@@ -411,16 +536,39 @@ body {
 
 .boot-loader-fill {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(95, 217, 255, 0.08), rgba(95, 217, 255, 0.92), rgba(255, 204, 115, 0.8), rgba(95, 217, 255, 0.08));
-  animation: loaderSweep 1.35s linear infinite;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(95, 217, 255, 0.72), rgba(95, 217, 255, 0.96), rgba(255, 204, 115, 0.86));
+  box-shadow: 0 0 18px rgba(95, 217, 255, 0.42);
+  transition: width 0.18s linear;
+}
+
+.boot-loader-milestones {
+  width: min(460px, 84%);
+  margin: 6px auto 8px;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(158, 196, 226, 0.66);
+  font-size: 0.62rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.boot-loader-milestones span {
+  transition: color var(--transition-fast), text-shadow var(--transition-fast);
+}
+
+.boot-loader-milestones span.done {
+  color: rgba(231, 248, 255, 0.98);
+  text-shadow: 0 0 10px rgba(95, 217, 255, 0.42);
 }
 
 .boot-loader-text {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
+  color: #d6ebff;
+  font-size: 0.76rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .auth-stage-shell {
@@ -2101,6 +2249,29 @@ body {
 
   .clinical-subtitle {
     font-size: 1.45rem;
+  }
+
+  .boot-rings-wrap {
+    height: 128px;
+  }
+
+  .boot-orbit-ring.ring-one {
+    height: 102px;
+  }
+
+  .boot-orbit-ring.ring-two {
+    height: 74px;
+  }
+
+  .disha-boot-chip {
+    letter-spacing: 0.14em;
+  }
+
+  .boot-skip-btn {
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    font-size: 0.62rem;
   }
 
   .patient-meta-box {

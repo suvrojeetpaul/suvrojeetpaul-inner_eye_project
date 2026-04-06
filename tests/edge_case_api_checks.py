@@ -5,7 +5,23 @@ import argparse
 import json
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
+
+
+def build_url(base_url: str, path: str) -> str:
+    raw_path = path or ""
+    if "?" not in raw_path:
+        return f"{base_url.rstrip('/')}{raw_path}"
+
+    route, raw_query = raw_path.split("?", 1)
+    encoded_query = urllib.parse.urlencode(
+        urllib.parse.parse_qsl(raw_query, keep_blank_values=True),
+        doseq=True,
+    )
+    if encoded_query:
+        return f"{base_url.rstrip('/')}{route}?{encoded_query}"
+    return f"{base_url.rstrip('/')}{route}"
 
 
 def request(base_url: str, path: str, method: str = "GET", body=None, headers=None):
@@ -15,7 +31,7 @@ def request(base_url: str, path: str, method: str = "GET", body=None, headers=No
         payload = json.dumps(body).encode("utf-8")
         final_headers["Content-Type"] = "application/json"
     req = urllib.request.Request(
-        f"{base_url.rstrip('/')}{path}",
+        build_url(base_url, path),
         data=payload,
         method=method,
         headers=final_headers,
@@ -62,21 +78,24 @@ def main():
 
     results = []
 
-    status, data = request(args.base_url, "/nearest-bed-options?residence=&scope=local")
+    token = auth_token(args.base_url, args.username, args.password)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    status, data = request(args.base_url, "/nearest-bed-options?residence=&scope=local", headers=headers)
     results.append(check(
         "missing residence rejected",
         status == 422,
         f"status={status}, detail={data.get('detail')}"
     ))
 
-    status, data = request(args.base_url, "/nearest-bed-options?residence=Kolkata, India&scope=planet")
+    status, data = request(args.base_url, "/nearest-bed-options?residence=Kolkata, India&scope=planet", headers=headers)
     results.append(check(
         "invalid scope rejected",
         status == 422,
         f"status={status}, detail={data.get('detail')}"
     ))
 
-    status, data = request(args.base_url, "/nearest-bed-options?residence=Kolkata&scope=local")
+    status, data = request(args.base_url, "/nearest-bed-options?residence=Kolkata&scope=local", headers=headers)
     partial_flag = data.get("partial_location_input") if isinstance(data, dict) else None
     results.append(check(
         "partial location accepted with flag",
@@ -84,16 +103,13 @@ def main():
         f"status={status}, partial_location_input={partial_flag}"
     ))
 
-    status, data = request(args.base_url, "/nearest-bed-options?residence=NowhereLandZXQ, Unknown&scope=global")
+    status, data = request(args.base_url, "/nearest-bed-options?residence=NowhereLandZXQ, Unknown&scope=global", headers=headers)
     options = data.get("options") if isinstance(data, dict) else None
     results.append(check(
         "unknown location handled gracefully",
         status == 200 and isinstance(options, list),
         f"status={status}, options_count={len(options or [])}"
     ))
-
-    token = auth_token(args.base_url, args.username, args.password)
-    headers = {"Authorization": f"Bearer {token}"}
 
     status, data = request(args.base_url, "/emergency-nearest-icu", headers=headers)
     options = data.get("options") if isinstance(data, dict) else None

@@ -24,6 +24,10 @@ const resolveDefaultApiBaseUrl = () => {
 
 const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || resolveDefaultApiBaseUrl()).replace(/\/$/, '');
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
+const BOOT_ANIMATION_PRESETS = {
+  cinematic: 4600,
+  fast: 2500,
+};
 
 const getAlternateLoopbackUrl = (targetUrl) => {
   try {
@@ -158,6 +162,7 @@ function App() {
   const [landingStep, setLandingStep] = useState("welcome");
   const [carePath, setCarePath] = useState(null);
   const [isAppBooting, setIsAppBooting] = useState(true);
+  const [bootProgress, setBootProgress] = useState(0);
 
   // --- [1] CORE SYSTEM STATE ---
   const [department, setDepartment] = useState(null);
@@ -206,6 +211,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [language, setLanguage] = useState('en');
+  const [bootMode, setBootMode] = useState('cinematic');
   const [darkMode, setDarkMode] = useState(true);
   const [largeTextMode, setLargeTextMode] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
@@ -228,10 +234,13 @@ function App() {
   const [clockTick, setClockTick] = useState(Date.now());
   const [backendOnline, setBackendOnline] = useState(true);
   const debounceTimerRef = useRef(null);
+  const fetchNearestBedsRef = useRef(null);
   const bookingInFlightRef = useRef(new Set());
   const lastAutoBedRefreshRef = useRef(0);
   const viewerCommandCounterRef = useRef(0);
   const rendererCanvasRef = useRef(null);
+  const bootProgressIntervalRef = useRef(null);
+  const bootSequenceStartedRef = useRef(false);
   const lastAuthSuccessAtRef = useRef(0);
   const backendHealthFailCountRef = useRef(0);
   const scanInFlightRef = useRef(false);
@@ -265,6 +274,9 @@ function App() {
     const cores = hasNavigator ? Number(navigator.hardwareConcurrency || 4) : 4;
     const memory = hasNavigator ? Number(navigator.deviceMemory || 4) : 4;
     if (cores <= 4 || memory <= 4) {
+      return 'eco';
+    }
+    if (cores >= 8 && memory >= 8) {
       return 'performance';
     }
     return 'balanced';
@@ -274,6 +286,22 @@ function App() {
     const dict = I18N_TEXT[language] || I18N_TEXT.en;
     return dict[key] || I18N_TEXT.en[key] || key;
   }, [language]);
+
+  const bootStatusLabel = useMemo(() => {
+    if (bootProgress < 22) return 'Initializing care systems';
+    if (bootProgress < 48) return 'Securing patient channel';
+    if (bootProgress < 74) return 'Calibrating clinical models';
+    return 'Preparing live dashboard';
+  }, [bootProgress]);
+
+  const skipBootSequence = useCallback(() => {
+    if (bootProgressIntervalRef.current) {
+      clearInterval(bootProgressIntervalRef.current);
+      bootProgressIntervalRef.current = null;
+    }
+    setBootProgress(100);
+    setIsAppBooting(false);
+  }, []);
 
   const formatRelativeUpdate = useCallback((timestamp) => {
     if (!timestamp) return 'Last updated: just now';
@@ -434,6 +462,7 @@ function App() {
     try {
       const prefs = JSON.parse(rawPrefs);
       if (typeof prefs.language === 'string') setLanguage(prefs.language);
+      if (prefs.bootMode === 'cinematic' || prefs.bootMode === 'fast') setBootMode(prefs.bootMode);
       if (typeof prefs.darkMode === 'boolean') setDarkMode(prefs.darkMode);
       if (typeof prefs.largeTextMode === 'boolean') setLargeTextMode(prefs.largeTextMode);
       if (typeof prefs.compactMode === 'boolean') setCompactMode(prefs.compactMode);
@@ -449,6 +478,7 @@ function App() {
       'dishaUiPrefs',
       JSON.stringify({
         language,
+        bootMode,
         darkMode,
         largeTextMode,
         compactMode,
@@ -456,14 +486,38 @@ function App() {
         filterIcuOnly,
       }),
     );
-  }, [compactMode, darkMode, filterIcuOnly, language, largeTextMode, maxDistanceKm]);
+  }, [bootMode, compactMode, darkMode, filterIcuOnly, language, largeTextMode, maxDistanceKm]);
 
   useEffect(() => {
-    const bootTimer = setTimeout(() => {
-      setIsAppBooting(false);
-    }, 1800);
-    return () => clearTimeout(bootTimer);
-  }, []);
+    if (bootSequenceStartedRef.current && !isAppBooting) {
+      return undefined;
+    }
+    bootSequenceStartedRef.current = true;
+
+    const startTs = Date.now();
+    const durationMs = BOOT_ANIMATION_PRESETS[bootMode] || BOOT_ANIMATION_PRESETS.cinematic;
+    setBootProgress(0);
+    setIsAppBooting(true);
+
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTs;
+      const ratio = Math.min(1, elapsed / durationMs);
+      setBootProgress(Math.round(ratio * 100));
+      if (ratio >= 1) {
+        clearInterval(progressInterval);
+        bootProgressIntervalRef.current = null;
+        setIsAppBooting(false);
+      }
+    }, 70);
+    bootProgressIntervalRef.current = progressInterval;
+
+    return () => {
+      clearInterval(progressInterval);
+      if (bootProgressIntervalRef.current === progressInterval) {
+        bootProgressIntervalRef.current = null;
+      }
+    };
+  }, [bootMode, isAppBooting]);
 
   const filteredNearestBeds = useMemo(() => {
     const normalizedQuery = bedSearchQuery.trim().toLowerCase();
@@ -705,6 +759,10 @@ function App() {
   }, [authHeaders, authToken, handleLogout, requestWithRetry]);
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return undefined;
+    }
+
     let mounted = true;
 
     const checkBackend = async () => {
@@ -1546,6 +1604,11 @@ function App() {
   }, [result, residence, searchWorldwide, requestWithRetry, authHeaders, isCompleteLocation, bookingSeverity, bookingSymptoms, updateBackendStatusFromError]);
 
   useEffect(() => {
+    fetchNearestBedsRef.current = fetchNearestBeds;
+  }, [fetchNearestBeds]);
+
+  useEffect(() => {
+    if (!authToken) return undefined;
     if (!carePath || !['booking', 'hospital'].includes(carePath)) return undefined;
 
     const socket = new WebSocket(`${WS_BASE_URL}/ws/bed-updates?token=${encodeURIComponent(authToken)}`);
@@ -1562,7 +1625,7 @@ function App() {
           const now = Date.now();
           if (now - lastAutoBedRefreshRef.current > 5000) {
             lastAutoBedRefreshRef.current = now;
-            fetchNearestBeds();
+            fetchNearestBedsRef.current?.();
           }
         }
       } catch (error) {
@@ -1576,7 +1639,7 @@ function App() {
     return () => {
       socket.close();
     };
-  }, [carePath, fetchNearestBeds, isCompleteLocation, authToken]);
+  }, [carePath, isCompleteLocation, authToken]);
 
   useEffect(() => {
     return () => {
@@ -1701,6 +1764,10 @@ function App() {
             <option value="bn">বাংলা</option>
             <option value="hi">हिंदी</option>
           </select>
+          <select className="magic-input-field" value={bootMode} onChange={(e) => setBootMode(e.target.value)}>
+            <option value="cinematic">Intro: Cinematic (4-5s)</option>
+            <option value="fast">Intro: Fast (~2.5s)</option>
+          </select>
           <label className="consent-checkbox-row compact">
             <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
             Dark mode
@@ -1729,12 +1796,25 @@ function App() {
         >
           {landingViewStep === 'splash' ? (
             <div className="splash-stage-container">
+              <button className="boot-skip-btn" onClick={skipBootSequence}>Skip Intro</button>
+              <div className="boot-rings-wrap" aria-hidden="true">
+                <div className="boot-orbit-ring ring-one"></div>
+                <div className="boot-orbit-ring ring-two"></div>
+                <div className="boot-signal-beam"></div>
+              </div>
+              <div className="disha-boot-chip">DISHA // SECURE CARE SUITE</div>
               <div className="disha-boot-logo">DISHA</div>
               <div className="disha-boot-subtitle">your care, our vision</div>
               <div className="boot-loader-track">
-                <div className="boot-loader-fill"></div>
+                <div className="boot-loader-fill" style={{ width: `${bootProgress}%` }}></div>
               </div>
-              <div className="boot-loader-text">Loading secure care workspace...</div>
+              <div className="boot-loader-milestones" aria-hidden="true">
+                <span className={bootProgress >= 20 ? 'done' : ''}>AUTH</span>
+                <span className={bootProgress >= 45 ? 'done' : ''}>NETWORK</span>
+                <span className={bootProgress >= 70 ? 'done' : ''}>AI CORE</span>
+                <span className={bootProgress >= 92 ? 'done' : ''}>UI</span>
+              </div>
+              <div className="boot-loader-text">{bootStatusLabel} • {bootProgress}%</div>
             </div>
           ) : landingViewStep === 'welcome' ? (
             <div className="welcome-pop-card">
@@ -1879,6 +1959,11 @@ function App() {
         <div className="header-left">
           <button className="back-portal-button" onClick={resetSession}>Exit Session</button>
           {authToken && <button className="back-portal-button" onClick={() => confirmLogout('previous')}>Logout</button>}
+          {authToken && (
+            <div className="live-update-caption">
+              Signed in as {authUsername} ({authRole.replace('_', ' ')})
+            </div>
+          )}
           <div className="breadcrumb-path">
             Session / {departmentLabel} / <span className="blue-text">{carePath === 'booking' ? 'Bed Routing' : carePath === 'hospital' ? 'Live Operations' : '3D Scan Analysis'}</span>
           </div>

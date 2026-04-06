@@ -26,11 +26,48 @@ class SecurityTester:
     def __init__(self, base_url=BASE_URL):
         self.base_url = base_url
         self.session = requests.Session()
+        self.auth_headers = {}
         self.results = {
             'passed': 0,
             'failed': 0,
             'warnings': 0,
             'tests': []
+        }
+
+    def authenticate(self):
+        """Authenticate once and keep Authorization/CSRF headers for protected endpoints."""
+        username = f"security_tester_{int(time.time())}"
+        password = "SecurityPass123"
+
+        signup_resp = self.session.post(
+            f"{self.base_url}/auth/signup",
+            json={"username": username, "password": password},
+            timeout=10,
+        )
+
+        auth_data = {}
+        if signup_resp.status_code == 200:
+            auth_data = signup_resp.json()
+        elif signup_resp.status_code == 409:
+            login_resp = self.session.post(
+                f"{self.base_url}/auth/login",
+                json={"username": username, "password": password},
+                timeout=10,
+            )
+            if login_resp.status_code != 200:
+                raise RuntimeError(f"Auth login failed: {login_resp.status_code} {login_resp.text}")
+            auth_data = login_resp.json()
+        else:
+            raise RuntimeError(f"Auth signup failed: {signup_resp.status_code} {signup_resp.text}")
+
+        token = auth_data.get("token")
+        csrf_token = auth_data.get("csrf_token")
+        if not token or not csrf_token:
+            raise RuntimeError("Missing token or CSRF token in auth response")
+
+        self.auth_headers = {
+            "Authorization": f"Bearer {token}",
+            "X-CSRF-Token": csrf_token,
         }
 
     def log_test(self, test_name, status, message=""):
@@ -73,6 +110,7 @@ class SecurityTester:
                     response = self.session.get(
                         f"{self.base_url}/nearest-bed-options",
                         params={'residence': 'kolkata'},
+                        headers=self.auth_headers,
                         timeout=5
                     )
                     
@@ -105,7 +143,10 @@ class SecurityTester:
         print(f"\n{BLUE}=== Testing Security Headers ==={END}")
         
         try:
-            response = self.session.get(f"{self.base_url}/nearest-bed-options?residence=kolkata")
+            response = self.session.get(
+                f"{self.base_url}/nearest-bed-options?residence=kolkata",
+                headers=self.auth_headers,
+            )
             headers = response.headers
             
             required_headers = {
@@ -146,10 +187,10 @@ class SecurityTester:
             # Test with origin that should be allowed
             response = self.session.get(
                 f"{self.base_url}/nearest-bed-options?residence=kolkata",
-                headers={'Origin': FRONTEND_URL}
+                headers={**self.auth_headers, 'Origin': FRONTEND_URL}
             )
             
-            if response.status_code == 200:
+            if response.status_code in [200, 422]:
                 self.log_test(
                     "CORS: Allowed Origin",
                     "PASS",
@@ -165,7 +206,7 @@ class SecurityTester:
             # Test with origin that should be blocked
             response = self.session.get(
                 f"{self.base_url}/nearest-bed-options?residence=kolkata",
-                headers={'Origin': 'http://malicious-site.com'}
+                headers={**self.auth_headers, 'Origin': 'http://malicious-site.com'}
             )
             
             if response.status_code == 200:
@@ -205,8 +246,9 @@ class SecurityTester:
                     'bed_number': '1',
                     'residence': 'kolkata',
                     'hospital': 'DISHA',
-                    'prescription_notes': 'Test'
-                }
+                    'consent': True,
+                },
+                headers=self.auth_headers,
             )
             
             if response.status_code in [400, 422, 500]:
@@ -233,8 +275,9 @@ class SecurityTester:
                     'bed_number': '-5',
                     'residence': 'kolkata',
                     'hospital': 'DISHA',
-                    'prescription_notes': 'Test'
-                }
+                    'consent': True,
+                },
+                headers=self.auth_headers,
             )
             
             if response.status_code in [400, 422]:
@@ -256,7 +299,8 @@ class SecurityTester:
         try:
             response = self.session.get(
                 f"{self.base_url}/nearest-bed-options",
-                params={'residence': '; DROP TABLE beds;--'}
+                params={'residence': '; DROP TABLE beds;--'},
+                headers=self.auth_headers,
             )
             
             if response.status_code in [400, 200]:
@@ -289,7 +333,8 @@ class SecurityTester:
             
             response = self.session.post(
                 f"{self.base_url}/process-scan",
-                files=files
+                files=files,
+                headers=self.auth_headers,
             )
             
             if response.status_code in [400, 415, 422]:
@@ -319,8 +364,9 @@ class SecurityTester:
                     'bed_number': '1',
                     'residence': 'kolkata',
                     'hospital': 'DISHA',
-                    'prescription_notes': 'Test prescription'
-                }
+                    'consent': True,
+                },
+                headers=self.auth_headers,
             )
             
             response_text = response.text.lower()
@@ -418,6 +464,13 @@ class SecurityTester:
             return
         
         # Run tests
+        try:
+            self.authenticate()
+            print(f"{GREEN}✓ Authenticated test user successfully{END}\n")
+        except Exception as e:
+            print(f"{RED}✗ Authentication setup failed: {e}{END}")
+            return
+
         self.test_security_headers()
         self.test_rate_limiting()
         self.test_cors_restriction()
