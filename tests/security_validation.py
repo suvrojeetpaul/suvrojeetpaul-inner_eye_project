@@ -14,6 +14,7 @@ import sys
 # Configuration
 BASE_URL = "http://localhost:8000"
 FRONTEND_URL = "http://localhost:3000"
+TEST_HOSPITAL = "DISHA Central Care"
 
 # Colors for terminal output
 GREEN = '\033[92m'
@@ -245,23 +246,32 @@ class SecurityTester:
                     'patient_name': '<script>alert(1)</script>',
                     'bed_number': '1',
                     'residence': 'kolkata',
-                    'hospital': 'DISHA',
+                    'hospital': TEST_HOSPITAL,
                     'consent': True,
                 },
                 headers=self.auth_headers,
             )
             
-            if response.status_code in [400, 422, 500]:
+            response_text = response.text.lower()
+            contains_script_payload = "<script>" in response_text or "alert(1)" in response_text
+
+            if response.status_code in [400, 422]:
                 self.log_test(
                     "XSS Prevention: Script in patient name",
                     "PASS",
                     f"Rejected with status {response.status_code}"
                 )
+            elif response.status_code in [200, 201] and not contains_script_payload:
+                self.log_test(
+                    "XSS Prevention: Script in patient name",
+                    "PASS",
+                    "Input accepted but payload was neutralized and not reflected"
+                )
             else:
                 self.log_test(
                     "XSS Prevention: Script in patient name",
-                    "WARN",
-                    f"Accepted (status {response.status_code}) - verify response doesn't contain script"
+                    "FAIL",
+                    f"Unexpected status {response.status_code} or payload reflected"
                 )
         except Exception as e:
             self.log_test("XSS Prevention", "FAIL", str(e))
@@ -274,7 +284,7 @@ class SecurityTester:
                     'patient_name': 'John Doe',
                     'bed_number': '-5',
                     'residence': 'kolkata',
-                    'hospital': 'DISHA',
+                    'hospital': TEST_HOSPITAL,
                     'consent': True,
                 },
                 headers=self.auth_headers,
@@ -289,8 +299,8 @@ class SecurityTester:
             else:
                 self.log_test(
                     "Input Validation: Negative bed number",
-                    "WARN",
-                    f"Status {response.status_code}"
+                    "FAIL",
+                    f"Accepted invalid negative bed number with status {response.status_code}"
                 )
         except Exception as e:
             self.log_test("Input Validation", "FAIL", str(e))
@@ -363,7 +373,7 @@ class SecurityTester:
                     'patient_name': 'John Doe Sensitive',
                     'bed_number': '1',
                     'residence': 'kolkata',
-                    'hospital': 'DISHA',
+                    'hospital': TEST_HOSPITAL,
                     'consent': True,
                 },
                 headers=self.auth_headers,
@@ -472,12 +482,12 @@ class SecurityTester:
             return
 
         self.test_security_headers()
-        self.test_rate_limiting()
         self.test_cors_restriction()
         self.test_input_validation()
         self.test_file_upload_validation()
         self.test_pii_protection()
         self.test_security_logging()
+        self.test_rate_limiting()
         
         # Print summary
         self.print_summary()

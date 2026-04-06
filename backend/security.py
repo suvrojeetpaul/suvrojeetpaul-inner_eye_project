@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Optional, Callable
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import jwt
 
@@ -74,18 +75,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if client_ip not in self.client_requests:
             self.client_requests[client_ip] = []
         
-        # Remove old requests outside the window
+        # Remove old requests outside the configured window
         self.client_requests[client_ip] = [
             req_time for req_time in self.client_requests[client_ip]
-            if (current_time - req_time).seconds < 60
+            if (current_time - req_time).total_seconds() < SecurityConfig.RATE_LIMIT_WINDOW_SECONDS
         ]
         
         # Check rate limit
         if len(self.client_requests[client_ip]) >= self.requests_per_minute:
             logger.warning(f"Rate limit exceeded for IP: {client_ip}")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Please try again later."
+                content={"detail": "Rate limit exceeded. Please try again later."},
             )
         
         self.client_requests[client_ip].append(current_time)
@@ -102,9 +103,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             host = request.client.host if request.client else ""
             is_local = host in {"127.0.0.1", "localhost", "::1"}
             if not is_local and forwarded_proto != "https" and request_scheme != "https":
-                raise HTTPException(
+                return JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="HTTPS_REQUIRED"
+                    content={"detail": "HTTPS_REQUIRED"},
                 )
 
         response = await call_next(request)
@@ -171,6 +172,9 @@ class InputValidator:
         
         if not sanitized.strip():
             raise ValueError("Bed number contains invalid characters")
+
+        if sanitized.startswith("-"):
+            raise ValueError("Invalid bed number")
         
         return sanitized.strip()
     
