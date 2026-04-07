@@ -1740,6 +1740,9 @@ function App() {
     }
 
     if (authToken) {
+      if (landingStep === 'welcome') {
+        return 'welcome';
+      }
       return landingStep === 'departments' ? 'departments' : 'care';
     }
 
@@ -1916,7 +1919,16 @@ function App() {
                   </div>
                 ))}
               </div>
-              <button className="landing-back-button" onClick={() => setLandingStep('welcome')}>Back to Main Page</button>
+              <button
+                className="landing-back-button"
+                onClick={() => {
+                  setCarePath(null);
+                  setDepartment(null);
+                  setLandingStep('welcome');
+                }}
+              >
+                Back to Main Page
+              </button>
             </>
           ) : (
             <>

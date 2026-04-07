@@ -112,12 +112,10 @@ function MedicalMesh({
         zoomByFactor(1.16);
         break;
       case 'rotate-left':
-        controls.rotateLeft(rotateStep);
-        controls.update();
+        rotateCameraBy(rotateStep, 0);
         break;
       case 'rotate-right':
-        controls.rotateLeft(-rotateStep);
-        controls.update();
+        rotateCameraBy(-rotateStep, 0);
         break;
       case 'rotate-up':
         rotateCameraBy(0, -rotateStep * 0.7);
